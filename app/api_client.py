@@ -106,3 +106,24 @@ def get_contact_by_email(email: str):
     if not row:
         return None
     return get_contact_by_id(row["id"])
+
+# --- Related list helpers (Deals related to a Contact) ---
+def bigin_get_related(module_api: str, record_id: str, related_api: str, params=None):
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/{module_api}/{record_id}/{related_api}"
+    r = requests.get(url, params=params or {},
+                     headers={"Authorization": f"Zoho-oauthtoken {at}"}, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+def get_deals_for_contact_id(contact_id: str):
+    """Return list[dict] of Deals related to a Contact."""
+    res = bigin_get_related("Contacts", contact_id, "Deals")
+    return res.get("data", [])
+
+def get_deals_for_contact_email(email: str):
+    """Look up contact by email, then return its related Deals list."""
+    row = search_contact_by_email(email)
+    if not row:
+        return []
+    return get_deals_for_contact_id(row["id"])
