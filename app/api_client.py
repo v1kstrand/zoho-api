@@ -63,3 +63,46 @@ def bigin_delete(path: str):
                         timeout=20)
     r.raise_for_status()
     return r.json()
+
+def bigin_put(path: str, json_body: dict):
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/{path.lstrip('/')}"
+    r = requests.put(url, json=json_body,
+                     headers={"Authorization": f"Zoho-oauthtoken {at}"},
+                     timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+# Find first contact by email
+def search_contact_by_email(email: str):
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/Contacts/search"
+    r = requests.get(
+        url,
+        params={"criteria": f"(Email:equals:{email})"},
+        headers={"Authorization": f"Zoho-oauthtoken {at}"},
+        timeout=20,
+    )
+    r.raise_for_status()
+    data = r.json().get("data", [])
+    return data[0] if data else None
+
+# Update fields on a Contact by ID
+def update_contact_fields(contact_id: str, fields: dict):
+    body = {"data": [{**fields, "id": contact_id}], "trigger": []}  # disable workflows
+    return bigin_put("Contacts", body)
+
+
+# --- Contact getters ---
+def get_contact_by_id(contact_id: str):
+    """Return the full Contact record (dict) or None if not found."""
+    res = bigin_get(f"Contacts/{contact_id}")
+    data = res.get("data") or []
+    return data[0] if data else None
+
+def get_contact_by_email(email: str):
+    """Search by email, then fetch the full record (dict) or None."""
+    row = search_contact_by_email(email)
+    if not row:
+        return None
+    return get_contact_by_id(row["id"])
