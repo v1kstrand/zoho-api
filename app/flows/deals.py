@@ -12,7 +12,6 @@ def main():
 
     try:
         deals = get_deals_for_contact_id(args.id) if args.id else get_deals_for_contact_email(args.email)
-        # compact view: pick common fields if present
         if not args.full:
             slim = []
             for d in deals or []:

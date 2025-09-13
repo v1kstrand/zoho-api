@@ -18,6 +18,7 @@ def main():
 
     try:
         if args.first:
+            print(args.first)
             deal = first_deal_by_contact_email(args.email) if args.email else first_deal_by_contact_id(args.id)
             if not deal:
                 print(json.dumps({"ok": True, "count": 0, "deal": None}))
