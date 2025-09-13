@@ -6,11 +6,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 
 # Load environment for CLI/server runs (safe if .env absent)
-try:
-    from dotenv import load_dotenv  # pip install python-dotenv
-    load_dotenv()
-except Exception:
-    pass
+from dotenv import load_dotenv  # pip install python-dotenv
+load_dotenv()
 
 # --------------------------------------------------------------------
 # Config
