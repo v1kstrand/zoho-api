@@ -127,3 +127,106 @@ def get_deals_for_contact_email(email: str):
     if not row:
         return []
     return get_deals_for_contact_id(row["id"])
+
+# -------- Generic record lookups --------
+
+def get_record_by_id(module_api: str, record_id: str):
+    """
+    Fetch a single record by ID from any module.
+    Example: get_record_by_id("Contacts", "8864...").
+    """
+    res = bigin_get(f"{module_api}/{record_id}")
+    data = res.get("data") or []
+    return data[0] if data else None
+
+def search_record_first(module_api: str, field_api: str, value: str, operator: str = "equals"):
+    """
+    Search the first record in a module by an arbitrary field.
+    Example: search_record_first("Contacts", "Email", "user@acme.com")
+    """
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/{module_api}/search"
+    criteria = f"({field_api}:{operator}:{value})"
+    r = requests.get(url, params={"criteria": criteria},
+                     headers={"Authorization": f"Zoho-oauthtoken {at}"},
+                     timeout=20)
+    r.raise_for_status()
+    data = r.json().get("data", []) or []
+    return data[0] if data else None
+
+def search_record_by_email(module_api: str, email: str, email_field_api: str = "Email"):
+    """
+    Convenience for modules that have an Email field (e.g., Contacts).
+    Example: search_record_by_email("Contacts", "user@acme.com")
+    """
+    return search_record_first(module_api, email_field_api, email)
+
+
+import requests as _requests
+
+def _discover_deals_contact_lookup_field(module_api: str = "Pipelines") -> str:
+    """
+    Find the lookup field on Pipelines (Deals) that points to Contacts.
+    We scan settings/fields for a lookup whose related module is Contacts.
+    Falls back to 'Contact_Name' which is common in Bigin.
+    """
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/settings/fields"
+    r = requests.get(url, params={"module": module_api},
+                     headers={"Authorization": f"Zoho-oauthtoken {at}"}, timeout=20)
+    r.raise_for_status()
+    for f in r.json().get("fields", []) or []:
+        if (f.get("data_type") == "lookup") and ((f.get("lookup") or {}).get("module", {}).get("api_name") == "Contacts"):
+            return f["api_name"]
+    return "Contact_Name"
+
+def _search_deals_page(contact_id: str, module_api: str, lookup_field: str, page: int, per_page: int):
+    at, api = get_access_token()
+    url = f"{api.rstrip('/')}/bigin/v2/{module_api}/search"
+    criteria = f"({lookup_field}:equals:{contact_id})"
+    r = requests.get(url, params={"criteria": criteria, "page": page, "per_page": per_page},
+                     headers={"Authorization": f"Zoho-oauthtoken {at}"}, timeout=20)
+    if r.status_code == 204:
+        return []
+    r.raise_for_status()
+    return r.json().get("data", []) or []
+
+def list_deals_by_contact_id(contact_id: str, per_page: int = 200, max_pages: int = 10):
+    """
+    Return ALL deals for a contact (paginate). Defaults to Pipelines; if that 4xx's,
+    retry with module_api='Deals' just in case your org uses that name.
+    """
+    def _run(module_api: str):
+        lookup = _discover_deals_contact_lookup_field(module_api)
+        out, page = [], 1
+        while page <= max_pages:
+            chunk = _search_deals_page(contact_id, module_api, lookup, page, per_page)
+            if not chunk:
+                break
+            out.extend(chunk)
+            if len(chunk) < per_page:
+                break
+            page += 1
+        return out
+
+    try:
+        return _run("Pipelines")
+    except _requests.HTTPError as e:
+        # Fallback to 'Deals' if Pipelines isn't your module name
+        return _run("Deals")
+
+def first_deal_by_contact_id(contact_id: str):
+    deals = list_deals_by_contact_id(contact_id, per_page=1, max_pages=1)
+    return deals[0] if deals else None
+
+def list_deals_by_contact_email(email: str):
+    row = search_contact_by_email(email)
+    if not row:
+        return []
+    return list_deals_by_contact_id(row["id"])
+
+def first_deal_by_contact_email(email: str):
+    row = search_contact_by_email(email)
+    if not row:
+        return None
+    return first_deal_by_contact_id(row["id"])
