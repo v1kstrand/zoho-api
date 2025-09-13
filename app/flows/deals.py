@@ -1,37 +1,32 @@
-# app/flows/deals_find.py
+# app/flows/deals.py
 import argparse, json, sys
-from ..api_client import (
-    list_deals_by_contact_email,
-    list_deals_by_contact_id,
-    first_deal_by_contact_email,
-    first_deal_by_contact_id,
-)
+from ..api_client import get_deals_for_contact_id, get_deals_for_contact_email
 
 def main():
-    ap = argparse.ArgumentParser(description="Find Pipelines/Deals for a contact (by email or id).")
+    ap = argparse.ArgumentParser(description="List Deals (pipeline records) for a Contact.")
     g = ap.add_mutually_exclusive_group(required=True)
-    g.add_argument("--email", help="Contact email")
     g.add_argument("--id", help="Contact ID")
-    ap.add_argument("--first", action="store_true", help="Return only the first matching deal")
-    ap.add_argument("--fields", help="Comma-separated fields to print (optional)")
+    g.add_argument("--email", help="Contact email")
+    ap.add_argument("--full", action="store_true", help="Print full records (default prints a compact view)")
     args = ap.parse_args()
 
     try:
-        if args.first:
-            deal = first_deal_by_contact_email(args.email) if args.email else first_deal_by_contact_id(args.id)
-            if not deal:
-                print(json.dumps({"ok": True, "count": 0, "deal": None}))
-                return
-            if args.fields:
-                picks = [f.strip() for f in args.fields.split(",") if f.strip()]
-                deal = {k: deal.get(k) for k in picks}
-            print(json.dumps({"ok": True, "count": 1, "deal": deal}, indent=2, ensure_ascii=False))
+        deals = get_deals_for_contact_id(args.id) if args.id else get_deals_for_contact_email(args.email)
+        # compact view: pick common fields if present
+        if not args.full:
+            slim = []
+            for d in deals or []:
+                slim.append({
+                    "id": d.get("id"),
+                    "Deal_Name": d.get("Deal_Name") or d.get("Deal_Name__s") or d.get("Name"),
+                    "Stage": d.get("Stage"),
+                    "Pipeline": d.get("Pipeline"),
+                    "Amount": d.get("Amount"),
+                    "Closing_Date": d.get("Closing_Date"),
+                })
+            print(json.dumps({"ok": True, "count": len(deals or []), "deals": slim}, indent=2, ensure_ascii=False))
         else:
-            deals = list_deals_by_contact_email(args.email) if args.email else list_deals_by_contact_id(args.id)
-            if args.fields:
-                picks = [f.strip() for f in args.fields.split(",") if f.strip()]
-                deals = [{k: d.get(k) for k in picks} for d in deals]
-            print(json.dumps({"ok": True, "count": len(deals), "deals": deals}, indent=2, ensure_ascii=False))
+            print(json.dumps({"ok": True, "count": len(deals or []), "deals": deals}, indent=2, ensure_ascii=False))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}), file=sys.stderr)
         sys.exit(2)
