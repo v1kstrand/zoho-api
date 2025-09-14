@@ -7,92 +7,76 @@ import os
 import re
 import time
 from email.header import decode_header, make_header
-from typing import Any, Dict, Optional
+from typing import Any, Dict,  Optional
 
 import requests
 
 # Reuse your API client + shared settings
-from ..api_client import (
-    get_access_token,
-    REQ_TIMEOUT,
-    bigin_post,
-    search_contact_by_email,
-    create_pipeline_record_for_contact,
-    update_records_by_contact_id,
-    update_contact_fields,
-)
+from ..api_client import (get_access_token, 
+                          REQ_TIMEOUT,     
+                            bigin_post,
+                            search_contact_by_email,
+                            create_pipeline_record_for_contact,
+                            get_contact_by_email,
+                            update_records_by_contact_id,
+                            update_contact_fields)
 
 # ---------------------------------------------------------------------
 # Config / Environment
 # ---------------------------------------------------------------------
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
-IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
-IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
+IMAP_USER = os.environ.get("ZOHO_IMAP_USER")            # required
+IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")        # required
 
-BOOKING_FOLDER = os.getenv("BOOKING_FOLDER", "INBOX")
-MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None)     # e.g., "Processed/Bookings"
+BOOKING_FOLDER  = os.getenv("BOOKING_FOLDER", "INBOX")
+MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None) #"Processed/Bookings")
 
 BOOKING_SUBJECT_HINT = re.compile(
     r"^(?=.*\b(?:booking|appointment|bokning|möte)\b)(?=.*\b(?:new|confirmed|scheduled|ny|bekräftad|schemalagd)\b)",
     re.I,
 )
-
-INVOICE_BID_RE = re.compile(r"The invoice number is:\s*(.*?)\s*\.", re.I | re.S)
-
-
-# ---------------------------------------------------------------------
+# -----------------------------
 # Bigin upserts (Contacts & Records)
-# ---------------------------------------------------------------------
+# -----------------------------
 def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
-    Expected keys in appt: email, first_name, last_name, phone.
-    """
-    email_addr = appt["email"]
-    if c := search_contact_by_email(email_addr):
+    Find or create a Contact from a Bookings appointment.
+    """    
+    if c := search_contact_by_email(appt["email"]):
         return c
 
     body = {
-        "data": [
-            {
-                "Email": email_addr,
-                "First_Name": appt["first_name"],
-                "Last_Name": appt["last_name"],
-                "Phone": appt.get("phone"),
-            }
-        ],
+        "data": [{
+            "Email": appt["email"],
+            "First_Name": appt["first_name"],
+            "Last_Name":  appt["last_name"],
+            "Phone": appt.get("phone"),
+        }],
         "trigger": [],
     }
     res = bigin_post("Contacts", body)
+    
     data = (res.get("data") or [])
-
-    # Poll for the freshly created record to become searchable
-    contact: Optional[Dict[str, Any]] = None
+    contact = None
     for _ in range(20):
-        contact = search_contact_by_email(email_addr)
+        contact = search_contact_by_email(appt["email"])
+        time.sleep(10)
         if contact:
             break
-        time.sleep(10)
+        print("sleep:", contact, appt["email"])
     else:
-        raise ValueError(f"Could not find Contact with Email={email_addr}")
-
-    # Create minimal Pipeline for the contact (uses your existing helper)
+        raise ValueError(f"Could not find Contact with Email={appt['email']}")
     create_pipeline_record_for_contact(contact["id"], "Booked")
-
     if data and data[0].get("status") == "success":
         return contact
     return None
 
 
-def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
-    """
-    Minimal: mark contact + their related records as Booked.
-    """
+def _upsert_pipeline_record(contact) -> dict:
     contact_id = contact["id"]
     update_contact_fields(contact_id, {"Status": "Booked"})
     update_records_by_contact_id(contact_id, {"Stage": "Booked"})
-
-
+    
 # ---------------------------------------------------------------------
 # IMAP helpers
 # ---------------------------------------------------------------------
@@ -102,18 +86,10 @@ def _ensure_mailbox(imap: imaplib.IMAP4_SSL, mailbox: str) -> None:
     except Exception:
         pass
 
-
-def _imap_connect_with_retry(
-    host: str,
-    user: str,
-    password: str,
-    select_folder: str,
-    *,
-    ensure_mailbox: Optional[str] = None,
-    attempts: int = 3,
-    delay: float = 2.0,
-    verbose: bool = True,
-) -> imaplib.IMAP4_SSL:
+def _imap_connect_with_retry(host: str, user: str, password: str, select_folder: str,
+                             *, ensure_mailbox: Optional[str] = None,
+                             attempts: int = 3, delay: float = 2.0,
+                             verbose: bool = True) -> imaplib.IMAP4_SSL:
     last: Optional[BaseException] = None
     for i in range(attempts):
         try:
@@ -165,7 +141,6 @@ def _get_text(msg: email.message.Message) -> str:
     except Exception:
         return ""
 
-
 def _move_message(imap: imaplib.IMAP4_SSL, uid: str, dest: str) -> None:
     try:
         _ensure_mailbox(imap, dest)
@@ -175,27 +150,23 @@ def _move_message(imap: imaplib.IMAP4_SSL, uid: str, dest: str) -> None:
     except Exception as e:
         print(f"[imap] move failed for uid={uid}: {e}")
 
-
 # ---------------------------------------------------------------------
 # Mail classification & parsing
 # ---------------------------------------------------------------------
 def _subject(msg: email.message.Message) -> str:
     return str(make_header(decode_header(msg.get("Subject", ""))))
 
-
 def _looks_like_booking(subj: str) -> bool:
     return bool(BOOKING_SUBJECT_HINT.search(subj))
 
-
 def _extract_booking_id(body: str) -> Optional[str]:
-    """
-    Grab booking_id from the 'invoice number' line (e.g., 'VI-00027'), prefix '#' if missing.
-    """
-    m = INVOICE_BID_RE.search(body or "")
+    m = re.search(r"The invoice number is:\s*(.*?)\s*\.", body, re.I | re.S)
     if not m:
         return None
     bid = m.group(1).strip()
     return f"#{bid}" if not bid.startswith("#") else bid
+
+
 
 
 # ---------------------------------------------------------------------
@@ -203,60 +174,58 @@ def _extract_booking_id(body: str) -> Optional[str]:
 # ---------------------------------------------------------------------
 def get_appointment(booking_id: str) -> Dict[str, Any]:
     """
-    Fetch a single appointment by booking_id using GET.
-    Returns a simplified dict for contact creation and downstream updates.
+    Fetch a single appointment by booking_id using GET (like:
+    curl -G --data-urlencode "booking_id=#VI-00027").
+    Returns {} if not found.
     """
     at, api = get_access_token()
     url = api.rstrip("/") + "/bookings/v1/json/getappointment"
-    headers = {"Authorization": f"Zoho-oauthtoken {at}"}
+    headers = {"Authorization": f"Zoho-oauthtoken {at}"}  # no JSON content-type
     r = requests.get(url, headers=headers, params={"booking_id": booking_id}, timeout=REQ_TIMEOUT)
     r.raise_for_status()
     j = r.json()
-
-    # Map fields we need into a compact dict (keeps current behavior)
-    email_addr = j["response"]["returnvalue"]["customer_email"]
+    
+    email = j["response"]["returnvalue"]["customer_email"]
     company = j["response"]["returnvalue"]["customer_more_info"]["Company"]
-    full_name_str = j["response"]["returnvalue"]["customer_name"]
+    full_name = j["response"]["returnvalue"]["customer_name"]
     phone = j["response"]["returnvalue"]["customer_contact_no"]
-    parts = full_name_str.strip().split()
-    first_name = parts[0]
-    last_name = " ".join(parts[1:])
+    full_name = full_name.strip().split()
+    first_name = full_name[0]
+    last_name = " ".join(full_name[1:])
     join_link = j["response"]["returnvalue"]["meeting_info"]["join_link"]
-
-    return {
-        "email": email_addr,
+    
+    appt = {
+        "email": email,
         "company": company,
-        "full_name": parts,  # NOTE: preserved as list to keep existing behavior
+        "full_name": full_name,
         "first_name": first_name,
         "last_name": last_name,
         "phone": phone,
-        "join_link": join_link,
+        "join_link": join_link
     }
+    return appt
 
 
-def send_email_invite(appt: Dict[str, Any]) -> None:
+def send_email_invite(appt):
     # TODO : Complete this (later not now)
-    _ = appt["join_link"]
+    join_link = appt["join_link"]
     return
-
+    
+    
 
 # ---------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------
 def process_bookings_once(verbose: bool = True) -> int:
     """
-    Scan BOOKING_FOLDER for unseen booking mails, upsert Contact + Pipeline, and
-    (optionally) move processed mails. Returns the count of handled booking mails.
+    Scan BOOKING_FOLDER for unseen booking mails, upsert Contact + Pipeline, and move
+    each processed mail to MOVE_BOOKING_TO. Returns the count of handled booking mails.
     """
     assert IMAP_USER and IMAP_PASS, "Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment"
 
     imap = _imap_connect_with_retry(
-        IMAP_HOST,
-        IMAP_USER,
-        IMAP_PASS,
-        BOOKING_FOLDER,
-        ensure_mailbox=MOVE_BOOKING_TO,
-        verbose=verbose,
+        IMAP_HOST, IMAP_USER, IMAP_PASS, BOOKING_FOLDER,
+        ensure_mailbox=MOVE_BOOKING_TO, verbose=verbose
     )
     handled = 0
 
@@ -279,32 +248,34 @@ def process_bookings_once(verbose: bool = True) -> int:
                 if not _looks_like_booking(subj):
                     continue
 
+                # Data we might extract from the mail itself
                 bid = _extract_booking_id(body)
-                if not bid:
-                    if verbose:
-                        print(f"[skip] no appointment match for uid={uid} subj={subj!r}")
-                    continue
+                appt: Optional[Dict[str, Any]] = None
 
-                if verbose:
-                    print(f"[bookings] Booking ID in mail: {bid}")
-
-                try:
-                    appt = get_appointment(bid)
-                except Exception as e:
+                # (1) Booking ID path
+                if bid:
                     if verbose:
-                        print(f"[bookings] get_appointment({bid}) failed: {e}")
-                    continue
-
-                c = _ensure_contact(appt)
-                if c:
-                    _upsert_pipeline_record(c)
-                    handled += 1
-                    if verbose:
-                        who = c.get("Email") or c.get("email") or c.get("id")
-                        print(f"[ok] upserted pipeline for {who}")
+                        print(f"[bookings] Booking ID in mail: {bid}")
+                    try:
+                        appt = get_appointment(bid)
+                    except Exception as e:
+                        if verbose:
+                            print(f"[bookings] get_appointment({bid}) failed: {e}")
+                            
+                    
+                    c = _ensure_contact(appt)
+                    if c:
+                        _upsert_pipeline_record(c)
+                        handled += 1
+                        if verbose:
+                            who = c.get("Email") or c.get("email") or c.get("id")
+                            print(f"[ok] upserted pipeline for {who}")
+                    else:
+                        if verbose:
+                            print("[warn] could not ensure contact (likely no email in appointment)")
                 else:
                     if verbose:
-                        print("[warn] could not ensure contact (likely no email in appointment)")
+                        print(f"[skip] no appointment match for uid={uid} subj={subj!r}")
 
             finally:
                 if MOVE_BOOKING_TO:

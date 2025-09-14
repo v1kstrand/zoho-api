@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 # ------------------------------------------------------------
@@ -297,3 +298,35 @@ def update_records(
     return {"ok": True, "updated": patch, "result": res}
 
 
+def create_pipeline_record_for_contact(contact_id: str, stage) -> Dict[str, Any]:
+    """
+    Create a Pipeline record linked to the given Contact ID.
+    Deal_Name is set to the contact's name.
+    """
+    # fetch contact to get a nice name
+    res = bigin_get(f"Contacts/{contact_id}")
+    row = (res.get("data") or [{}])[0]
+    contact_name = (
+        row.get("Full_Name")
+        or " ".join(x for x in [row.get("First_Name"), row.get("Last_Name")] if x)
+        or row.get("Email")
+        or f"Contact {contact_id}"
+    )
+
+    payload = {
+        "data": [        {
+            "Owner": {
+                "id": "886415000000502001"
+            },
+            "Sub_Pipeline": "Discovery Outreach Standard",
+            "Deal_Name": f"Record for {contact_name}",
+            "Contact_Name": {
+                "id": contact_id,
+                "name": contact_name
+            },
+            "Stage": stage,
+            "Pipeline": {'name': 'Discovery Outreach', 'id': '886415000000515415'}
+        }],
+        "trigger": [],
+    }
+    return bigin_post("Pipelines", payload)
