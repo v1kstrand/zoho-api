@@ -182,7 +182,8 @@ def update_module_fields(module_api: str, record_id: str, fields: JSON) -> JSON:
     PUT /{module_api} with {"data":[{...,"id":...}], "trigger":[]}
     Works for Contacts, Pipelines, Companies/Accounts, etc.
     """
-    body = {"data": [{**fields, "id": record_id}], "trigger": []}
+    
+    body = {"data": [{**fields, "id": record_id}]}
     return bigin_put(module_api, body)
 
 # ------------------------------------------------------------
@@ -225,9 +226,12 @@ def update_records_by_contact_id(
     module_api: str = "Pipelines",
     first_only: bool = False,
 ) -> JSON | List[JSON]:
+    
     rows = list_records_by_contact_id(contact_id, fields=["id"])
     if not rows:
-        return {} if first_only else []
+        create_pipeline_record_for_contact(contact_id)
+        time.sleep(1)
+        rows = list_records_by_contact_id(contact_id, fields=["id"])
     targets = rows[:1] if first_only else rows
     out: List[JSON] = [update_record_fields(r["id"], patch, module_api=module_api) for r in targets if r.get("id")]
     return out[0] if first_only else out
@@ -298,7 +302,9 @@ def update_records(
     return {"ok": True, "updated": patch, "result": res}
 
 
-def create_pipeline_record_for_contact(contact_id: str, stage) -> Dict[str, Any]:
+
+
+def create_pipeline_record_for_contact(contact_id: str) -> Dict[str, Any]:
     """
     Create a Pipeline record linked to the given Contact ID.
     Deal_Name is set to the contact's name.
@@ -324,7 +330,7 @@ def create_pipeline_record_for_contact(contact_id: str, stage) -> Dict[str, Any]
                 "id": contact_id,
                 "name": contact_name
             },
-            "Stage": stage,
+            "Stage": "New",
             "Pipeline": {'name': 'Discovery Outreach', 'id': '886415000000515415'}
         }],
         "trigger": [],

@@ -9,18 +9,14 @@ import time
 from email.header import decode_header, make_header
 from typing import Any, Dict, Optional
 
-import requests
-
 # Reuse your API client + shared settings
 from ..api_client import (
-    get_access_token,
-    REQ_TIMEOUT,
     bigin_post,
     search_contact_by_email,
-    create_pipeline_record_for_contact,
     update_records_by_contact_id,
     update_contact_fields,
 )
+from ..parse_mail import parse_mail
 
 # ---------------------------------------------------------------------
 # Config / Environment
@@ -33,64 +29,13 @@ BOOKING_FOLDER = os.getenv("BOOKING_FOLDER", "INBOX")
 MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None)     # e.g., "Processed/Bookings"
 
 BOOKING_SUBJECT_HINT = re.compile(
-    r"^(?=.*\b(?:booking|appointment|bokning|möte)\b)(?=.*\b(?:new|confirmed|scheduled|ny|bekräftad|schemalagd)\b)",
-    re.I,
+    r"""^(?:\s*(?:re|fwd)\s*:\s*)*              # optional Re:/Fwd:
+        vds\s+discovery\s+project\s+between\s+
+        david\s+vikstrand\s+and\s+              # fixed prefix
+        (?P<cust>.+?)\s*$                       # capture the remainder (customer name)
+    """,
+    re.I | re.X,
 )
-
-INVOICE_BID_RE = re.compile(r"The invoice number is:\s*(.*?)\s*\.", re.I | re.S)
-
-
-# ---------------------------------------------------------------------
-# Bigin upserts (Contacts & Records)
-# ---------------------------------------------------------------------
-def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
-    Expected keys in appt: email, first_name, last_name, phone.
-    """
-    email_addr = appt["email"]
-    if c := search_contact_by_email(email_addr):
-        return c
-
-    body = {
-        "data": [
-            {
-                "Email": email_addr,
-                "First_Name": appt["first_name"],
-                "Last_Name": appt["last_name"],
-                "Phone": appt.get("phone"),
-            }
-        ],
-        "trigger": [],
-    }
-    res = bigin_post("Contacts", body)
-    data = (res.get("data") or [])
-
-    # Poll for the freshly created record to become searchable
-    contact: Optional[Dict[str, Any]] = None
-    for _ in range(20):
-        contact = search_contact_by_email(email_addr)
-        if contact:
-            break
-        time.sleep(10)
-    else:
-        raise ValueError(f"Could not find Contact with Email={email_addr}")
-
-    # Create minimal Pipeline for the contact (uses your existing helper)
-    create_pipeline_record_for_contact(contact["id"], "Booked")
-
-    if data and data[0].get("status") == "success":
-        return contact
-    return None
-
-
-def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
-    """
-    Minimal: mark contact + their related records as Booked.
-    """
-    contact_id = contact["id"]
-    update_contact_fields(contact_id, {"Status": "Booked"})
-    update_records_by_contact_id(contact_id, {"Stage": "Booked"})
 
 
 # ---------------------------------------------------------------------
@@ -176,8 +121,63 @@ def _move_message(imap: imaplib.IMAP4_SSL, uid: str, dest: str) -> None:
         print(f"[imap] move failed for uid={uid}: {e}")
 
 
+
+def send_email_invite(appt: Dict[str, Any]) -> None:
+    # TODO : Complete this (later not now)
+    _ = appt["join_link"]
+    return
+
 # ---------------------------------------------------------------------
-# Mail classification & parsing
+# Bigin upserts (Contacts & Records)
+# ---------------------------------------------------------------------
+def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
+    Expected keys in appt: email, first_name, last_name, phone.
+    """
+    email_addr = appt["customer_email"]
+    if c := search_contact_by_email(email_addr):
+        return c
+    
+    body = {
+        "data": [
+            {
+                "Email": email_addr,
+                "First_Name": appt["customer_first_name"],
+                "Last_Name": appt["customer_last_name"],
+                "Phone": appt["customer_phone"],
+            }
+        ],
+        "trigger": [],
+    }
+    res = bigin_post("Contacts", body)
+    data = (res.get("data") or [])
+
+    # Poll for the freshly created record to become searchable
+    contact: Optional[Dict[str, Any]] = None
+    for _ in range(20):
+        contact = search_contact_by_email(email_addr)
+        if contact:
+            break
+        time.sleep(10)
+    else:
+        raise ValueError(f"Could not find Contact with Email={email_addr}")
+
+    if data and data[0].get("status") == "success":
+        return contact
+    return None
+
+
+def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
+    """
+    Minimal: mark contact + their related records as Booked.
+    """
+    contact_id = contact["id"]
+    update_contact_fields(contact_id, {"Status": "Booked"})
+    update_records_by_contact_id(contact_id, {"Stage": "Booked"})
+
+# ---------------------------------------------------------------------
+# Main
 # ---------------------------------------------------------------------
 def _subject(msg: email.message.Message) -> str:
     return str(make_header(decode_header(msg.get("Subject", ""))))
@@ -186,63 +186,6 @@ def _subject(msg: email.message.Message) -> str:
 def _looks_like_booking(subj: str) -> bool:
     return bool(BOOKING_SUBJECT_HINT.search(subj))
 
-
-def _extract_booking_id(body: str) -> Optional[str]:
-    """
-    Grab booking_id from the 'invoice number' line (e.g., 'VI-00027'), prefix '#' if missing.
-    """
-    m = INVOICE_BID_RE.search(body or "")
-    if not m:
-        return None
-    bid = m.group(1).strip()
-    return f"#{bid}" if not bid.startswith("#") else bid
-
-
-# ---------------------------------------------------------------------
-# Bookings helpers
-# ---------------------------------------------------------------------
-def get_appointment(booking_id: str) -> Dict[str, Any]:
-    """
-    Fetch a single appointment by booking_id using GET.
-    Returns a simplified dict for contact creation and downstream updates.
-    """
-    at, api = get_access_token()
-    url = api.rstrip("/") + "/bookings/v1/json/getappointment"
-    headers = {"Authorization": f"Zoho-oauthtoken {at}"}
-    r = requests.get(url, headers=headers, params={"booking_id": booking_id}, timeout=REQ_TIMEOUT)
-    r.raise_for_status()
-    j = r.json()
-
-    # Map fields we need into a compact dict (keeps current behavior)
-    email_addr = j["response"]["returnvalue"]["customer_email"]
-    company = j["response"]["returnvalue"]["customer_more_info"]["Company"]
-    full_name_str = j["response"]["returnvalue"]["customer_name"]
-    phone = j["response"]["returnvalue"]["customer_contact_no"]
-    parts = full_name_str.strip().split()
-    first_name = parts[0]
-    last_name = " ".join(parts[1:])
-    join_link = j["response"]["returnvalue"]["meeting_info"]["join_link"]
-
-    return {
-        "email": email_addr,
-        "company": company,
-        "full_name": parts,  # NOTE: preserved as list to keep existing behavior
-        "first_name": first_name,
-        "last_name": last_name,
-        "phone": phone,
-        "join_link": join_link,
-    }
-
-
-def send_email_invite(appt: Dict[str, Any]) -> None:
-    # TODO : Complete this (later not now)
-    _ = appt["join_link"]
-    return
-
-
-# ---------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------
 def process_bookings_once(verbose: bool = True) -> int:
     """
     Scan BOOKING_FOLDER for unseen booking mails, upsert Contact + Pipeline, and
@@ -279,22 +222,7 @@ def process_bookings_once(verbose: bool = True) -> int:
                 if not _looks_like_booking(subj):
                     continue
 
-                bid = _extract_booking_id(body)
-                if not bid:
-                    if verbose:
-                        print(f"[skip] no appointment match for uid={uid} subj={subj!r}")
-                    continue
-
-                if verbose:
-                    print(f"[bookings] Booking ID in mail: {bid}")
-
-                try:
-                    appt = get_appointment(bid)
-                except Exception as e:
-                    if verbose:
-                        print(f"[bookings] get_appointment({bid}) failed: {e}")
-                    continue
-
+                appt = parse_mail(body)
                 c = _ensure_contact(appt)
                 if c:
                     _upsert_pipeline_record(c)
@@ -323,7 +251,6 @@ def process_bookings_once(verbose: bool = True) -> int:
     if verbose:
         print(f"[done] handled {handled} booking email(s).")
     return handled
-
 
 if __name__ == "__main__":
     process_bookings_once()
