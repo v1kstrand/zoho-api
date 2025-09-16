@@ -39,53 +39,55 @@ def _api_base(tok: JSON) -> str:
 # ------------------------------------------------------------
 # OAuth
 # ------------------------------------------------------------
+
+
+def _refresh_access_token(tok: JSON) -> Tuple[str, str]:
+    """Refresh the OAuth access token using the stored refresh token."""
+    refresh = (tok.get("refresh_token") or "").strip()
+    if not refresh:
+        raise RuntimeError("tokens.json missing refresh_token")
+
+    client_id = (os.environ.get("Z_CLIENT_ID") or "").strip()
+    client_secret = (os.environ.get("Z_CLIENT_SECRET") or "").strip()
+    if not client_id or not client_secret:
+        raise RuntimeError("Set Z_CLIENT_ID and Z_CLIENT_SECRET in environment")
+
+    response = requests.post(
+        f"{ACCOUNTS}/oauth/v2/token",
+        data={
+            "grant_type": "refresh_token",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh,
+        },
+        timeout=REQ_TIMEOUT,
+    )
+    response.raise_for_status()
+    payload = response.json()
+
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise RuntimeError("OAuth response did not include access_token")
+
+    tok["access_token"] = access_token
+    ttl = int(payload.get("expires_in") or payload.get("expires_in_sec") or 3600)
+    tok["expires_at"] = time.time() + ttl
+    if payload.get("api_domain"):
+        tok["api_domain"] = payload["api_domain"]
+
+    _save_tokens(tok)
+    return tok["access_token"], _api_base(tok)
+
+
 def get_access_token() -> Tuple[str, str]:
     tok = _load_tokens()
     if tok.get("access_token") and tok.get("expires_at", 0) > time.time() + EXPIRY_SKEW:
         return tok["access_token"], _api_base(tok)
-
-    r = requests.post(
-        f"{ACCOUNTS}/oauth/v2/token",
-        data={
-            "grant_type": "refresh_token",
-            "client_id": os.environ.get("Z_CLIENT_ID"),
-            "client_secret": os.environ.get("Z_CLIENT_SECRET"),
-            "refresh_token": tok.get("refresh_token"),
-        },
-        timeout=REQ_TIMEOUT,
-    )
-    r.raise_for_status()
-    j = r.json()
-    tok["access_token"] = j["access_token"]
-    ttl = int(j.get("expires_in") or j.get("expires_in_sec") or 3600)
-    tok["expires_at"] = time.time() + ttl
-    if "api_domain" in j:
-        tok["api_domain"] = j["api_domain"]
-    _save_tokens(tok)
-    return tok["access_token"], _api_base(tok)
+    return _refresh_access_token(tok)
 
 def _force_refresh_access_token() -> Tuple[str, str]:
-    # unconditional refresh (used after a 401)
-    tok = _load_tokens()
-    r = requests.post(
-        f"{ACCOUNTS}/oauth/v2/token",
-        data={
-            "grant_type": "refresh_token",
-            "client_id": os.environ.get("Z_CLIENT_ID"),
-            "client_secret": os.environ.get("Z_CLIENT_SECRET"),
-            "refresh_token": tok.get("refresh_token"),
-        },
-        timeout=REQ_TIMEOUT,
-    )
-    r.raise_for_status()
-    j = r.json()
-    tok["access_token"] = j["access_token"]
-    ttl = int(j.get("expires_in") or j.get("expires_in_sec") or 3600)
-    tok["expires_at"] = time.time() + ttl
-    if "api_domain" in j:
-        tok["api_domain"] = j["api_domain"]
-    _save_tokens(tok)
-    return tok["access_token"], _api_base(tok)
+    """Unconditional refresh (used after a 401)."""
+    return _refresh_access_token(_load_tokens())
 
 def _auth_headers(at: str) -> JSON:
     return {"Authorization": f"Zoho-oauthtoken {at}"}
@@ -232,9 +234,16 @@ def update_records_by_contact_id(
         create_pipeline_record_for_contact(contact_id)
         time.sleep(1)
         rows = list_records_by_contact_id(contact_id, fields=["id"])
-    targets = rows[:1] if first_only else rows
-    out: List[JSON] = [update_record_fields(r["id"], patch, module_api=module_api) for r in targets if r.get("id")]
-    return out[0] if first_only else out
+
+    targets = [row for row in (rows[:1] if first_only else rows) if row.get("id")]
+    if not targets:
+        return {} if first_only else []
+
+    responses: List[JSON] = [
+        update_record_fields(row["id"], patch, module_api=module_api)
+        for row in targets
+    ]
+    return responses[0] if first_only else responses
 
 def update_records_by_contact_email(
     email: str,

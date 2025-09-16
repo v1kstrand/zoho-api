@@ -1,5 +1,16 @@
 import re
 
+
+def _normalize_name(raw):
+    if not raw:
+        return None
+    cleaned = re.sub(r"[._]+", " ", str(raw))
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned.title() if cleaned else None
+
+NAME_PHONE_SPLIT = re.compile(r"\s*[-\u2013\u2014]\s*")
+BETWEEN_RE = re.compile(r"between\s+.+?\s+and\s+(.+)", re.I)
+
 def parse_mail(body):
 
     body = body.strip()
@@ -12,6 +23,7 @@ def parse_mail(body):
     L = {i: s for i, s in enumerate(lines)}
 
     # find section indices
+    idx_what = next((i for i,s in L.items() if s.lower().startswith("what:")), -1)
     idx_tz   = next((i for i,s in L.items() if s.lower().startswith("invitee time zone:")), -1)
     idx_who  = next((i for i,s in L.items() if s.lower().startswith("who:")), -1)
     idx_where= next((i for i,s in L.items() if s.lower().startswith("where:")), -1)
@@ -26,6 +38,7 @@ def parse_mail(body):
             j += 1
         return None
 
+    what_line = next_line(idx_what)
     timezone = next_line(idx_tz)
     where    = next_line(idx_where)
     company  = next_line(idx_co)
@@ -45,15 +58,30 @@ def parse_mail(body):
     cust_phone = None
 
     for l in who_lines:
-        # name + phone like: "First_name Last_name - +46723866428"
-        if "-" in l and organizer_hint not in l.lower():
-            left, right = [x.strip() for x in l.split("-", 1)]
-            cust_name = left.replace("_", " ")
-            m = PHONE.search(right)
-            if m: cust_phone = m.group().replace(" ", "")
+        lower = l.lower()
+
+        # try to split "Name - phone" variants (regular hyphen, en dash, em dash)
+        if organizer_hint not in lower:
+            parts = NAME_PHONE_SPLIT.split(l, 1)
+            if len(parts) == 2:
+                left, right = (parts[0].strip(), parts[1].strip())
+                normalized = _normalize_name(left)
+                if normalized:
+                    cust_name = normalized
+                if right and not cust_phone:
+                    m = PHONE.search(right)
+                    if m:
+                        cust_phone = m.group().replace(" ", "")
+
+        # fallback: look for phone anywhere in the line
+        if not cust_phone:
+            m = PHONE.search(l)
+            if m:
+                cust_phone = m.group().replace(" ", "")
+
         # emails on any line
         for e in EMAIL.findall(l):
-            if organizer_hint in l.lower() or "info@vdsai.se" in e.lower():
+            if organizer_hint in lower or "info@vdsai.se" in e.lower():
                 organizer_email = organizer_email or e.lower()
             else:
                 cust_email = cust_email or e.lower()
@@ -67,8 +95,32 @@ def parse_mail(body):
     m = URL.search(where or "")
     where_url = m.group(0) if m else None
 
-    # SMS “undefined” -> None
-    first, last = cust_name.split(" ") if cust_name else ["", ""]
+    if not cust_name and what_line:
+        match = BETWEEN_RE.search(what_line)
+        if match:
+            fallback_name = _normalize_name(match.group(1).strip().strip('.'))
+            if fallback_name:
+                cust_name = fallback_name
+
+    if not cust_name and cust_email:
+        local = cust_email.split("@", 1)[0]
+        guess = _normalize_name(local)
+        if guess:
+            cust_name = guess
+
+    # SMS "undefined" -> None
+    first, last = "", ""
+    if cust_name:
+        parts = cust_name.split()
+        first = parts[0]
+        last = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+    sms_opt_phone = None
+    sms_value = (sms_raw or "").strip()
+    if sms_value and sms_value.lower() != "undefined":
+        sms_match = PHONE.search(sms_value)
+        if sms_match:
+            sms_opt_phone = sms_match.group().replace(" ", "")
 
     result = {
         "timezone": timezone,
@@ -80,7 +132,7 @@ def parse_mail(body):
         "organizer_email": organizer_email,
         "location_url": where_url,
         "company": company,
-        "sms_opt_phone": None if (sms_raw or "").lower()=="undefined" else (PHONE.search(sms_raw or "") and PHONE.search(sms_raw or "").group().replace(" ","")),
+        "sms_opt_phone": sms_opt_phone,
     }
 
     return result

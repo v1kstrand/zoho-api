@@ -15,8 +15,10 @@ from ..api_client import (
     search_contact_by_email,
     update_records_by_contact_id,
     update_contact_fields,
+    list_records_by_contact_id,
 )
 from ..parse_mail import parse_mail
+from ..mail_utils import ensure_mailbox, message_body_text, move_message
 
 # ---------------------------------------------------------------------
 # Config / Environment
@@ -41,20 +43,13 @@ BOOKING_SUBJECT_HINT = re.compile(
 # ---------------------------------------------------------------------
 # IMAP helpers
 # ---------------------------------------------------------------------
-def _ensure_mailbox(imap: imaplib.IMAP4_SSL, mailbox: str) -> None:
-    try:
-        imap.create(mailbox)
-    except Exception:
-        pass
-
-
 def _imap_connect_with_retry(
     host: str,
     user: str,
     password: str,
     select_folder: str,
     *,
-    ensure_mailbox: Optional[str] = None,
+    ensure_folder: Optional[str] = None,
     attempts: int = 3,
     delay: float = 2.0,
     verbose: bool = True,
@@ -64,11 +59,11 @@ def _imap_connect_with_retry(
         try:
             imap = imaplib.IMAP4_SSL(host)
             imap.login(user, password)
-            if ensure_mailbox:
-                _ensure_mailbox(imap, ensure_mailbox)
+            if ensure_folder:
+                ensure_mailbox(imap, ensure_folder)
             typ, _ = imap.select(select_folder)
             if typ != "OK":
-                _ensure_mailbox(imap, select_folder)
+                ensure_mailbox(imap, select_folder)
                 imap.select(select_folder)
             return imap
         except BaseException as e:
@@ -80,53 +75,6 @@ def _imap_connect_with_retry(
     raise last
 
 
-def _get_text(msg: email.message.Message) -> str:
-    """Best-effort plaintext extraction from MIME message."""
-    parts: list[str] = []
-    for p in msg.walk():
-        if p.get_content_maintype() == "multipart":
-            continue
-        ctype = p.get_content_type()
-        try:
-            payload = p.get_payload(decode=True) or b""
-        except Exception:
-            payload = b""
-        charset = p.get_content_charset() or "utf-8"
-        try:
-            text = payload.decode(charset, errors="replace")
-        except Exception:
-            text = payload.decode("utf-8", errors="replace")
-        if ctype == "text/plain":
-            parts.append(text)
-        elif ctype == "text/html":
-            parts.append(re.sub(r"<[^>]+>", " ", text))  # rough strip
-    if parts:
-        for t in parts:
-            if "\n" in t or len(t) > 20:
-                return t
-        return parts[0]
-    try:
-        return msg.as_string()
-    except Exception:
-        return ""
-
-
-def _move_message(imap: imaplib.IMAP4_SSL, uid: str, dest: str) -> None:
-    try:
-        _ensure_mailbox(imap, dest)
-        imap.uid("COPY", uid, dest)
-        imap.uid("STORE", uid, "+FLAGS", r"(\Deleted)")
-        imap.expunge()
-    except Exception as e:
-        print(f"[imap] move failed for uid={uid}: {e}")
-
-
-
-def send_email_invite(appt: Dict[str, Any]) -> None:
-    # TODO : Complete this (later not now)
-    _ = appt["join_link"]
-    return
-
 # ---------------------------------------------------------------------
 # Bigin upserts (Contacts & Records)
 # ---------------------------------------------------------------------
@@ -135,19 +83,25 @@ def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
     Expected keys in appt: email, first_name, last_name, phone.
     """
-    email_addr = appt["customer_email"]
+    email_addr = (appt.get("customer_email") or "").strip()
+    if not email_addr:
+        return None
+
     if c := search_contact_by_email(email_addr):
         return c
-    
+
+    contact_payload = {
+        key: value
+        for key, value in (
+            ("Email", email_addr),
+            ("First_Name", (appt.get("customer_first_name") or "").strip() or None),
+            ("Last_Name", (appt.get("customer_last_name") or "").strip() or None),
+            ("Phone", (appt.get("customer_phone") or "").strip() or None),
+        )
+        if value
+    }
     body = {
-        "data": [
-            {
-                "Email": email_addr,
-                "First_Name": appt["customer_first_name"],
-                "Last_Name": appt["customer_last_name"],
-                "Phone": appt["customer_phone"],
-            }
-        ],
+        "data": [contact_payload],
         "trigger": [],
     }
     res = bigin_post("Contacts", body)
@@ -166,6 +120,24 @@ def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if data and data[0].get("status") == "success":
         return contact
     return None
+
+
+def _is_already_booked(appt: Dict[str, Any]) -> bool:
+    email_addr = (appt.get("customer_email") or "").strip()
+    if not email_addr:
+        return False
+
+    contact = search_contact_by_email(email_addr)
+    if not contact or not contact.get("id"):
+        return False
+
+    records = list_records_by_contact_id(contact["id"], fields=["Stage"])
+    for record in records:
+        stage = (record.get("Stage") or "").strip().lower()
+        if stage == "booked":
+            print("[BEBUG] Is BOOKED")
+            return True
+    return False
 
 
 def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
@@ -198,7 +170,7 @@ def process_bookings_once(verbose: bool = True) -> int:
         IMAP_USER,
         IMAP_PASS,
         BOOKING_FOLDER,
-        ensure_mailbox=MOVE_BOOKING_TO,
+        ensure_folder=MOVE_BOOKING_TO,
         verbose=verbose,
     )
     handled = 0
@@ -210,6 +182,7 @@ def process_bookings_once(verbose: bool = True) -> int:
             print(f"[imap] {len(uids)} unseen in {BOOKING_FOLDER}")
 
         for uid in uids:
+            processed = False
             try:
                 typ, fetch = imap.uid("FETCH", uid, "(RFC822)")
                 if typ != "OK" or not fetch or not fetch[0]:
@@ -217,26 +190,43 @@ def process_bookings_once(verbose: bool = True) -> int:
 
                 msg = email.message_from_bytes(fetch[0][1])
                 subj = _subject(msg)
-                body = _get_text(msg)
+                body = message_body_text(msg)
 
                 if not _looks_like_booking(subj):
                     continue
+                
 
                 appt = parse_mail(body)
+                
+                if _is_already_booked(appt):
+                    processed = True
+                    if verbose:
+                        who = appt.get("customer_email") or appt.get("customer_name")
+                        print(f"[skip] already booked for {who}")
+                    continue
+
+                if not (appt.get("customer_email") or "").strip():
+                    if verbose:
+                        print("[warn] booking mail missing customer email; skipping")
+                    continue
+
                 c = _ensure_contact(appt)
                 if c:
                     _upsert_pipeline_record(c)
                     handled += 1
+                    processed = True
                     if verbose:
                         who = c.get("Email") or c.get("email") or c.get("id")
                         print(f"[ok] upserted pipeline for {who}")
                 else:
                     if verbose:
                         print("[warn] could not ensure contact (likely no email in appointment)")
-
+            except Exception as e:
+                if verbose:
+                    print(f"[error] failed to handle booking uid {uid}: {e}")
             finally:
-                if MOVE_BOOKING_TO:
-                    _move_message(imap, uid, MOVE_BOOKING_TO)
+                if MOVE_BOOKING_TO and processed:
+                    move_message(imap, uid, MOVE_BOOKING_TO)
 
     finally:
         try:
