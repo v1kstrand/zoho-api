@@ -1,5 +1,6 @@
 ﻿# app/tasks/mail_unsub_poll.py
 from __future__ import annotations
+from itertools import islice
 
 import imaplib, email, re, time, os
 from email.header import decode_header, make_header
@@ -60,9 +61,6 @@ def _note(contact_id: str, content: str) -> None:
         bigin_post(f"Contacts/{contact_id}/Notes", {"data": [{"Note_Content": content}]})
     except Exception:
         pass  # non-fatal
-
-
-from itertools import islice
 
 
 def _chunks(seq, n: int = 100):

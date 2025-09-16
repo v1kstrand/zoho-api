@@ -28,7 +28,7 @@ IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
 
 BOOKING_FOLDER = os.getenv("BOOKING_FOLDER", "INBOX")
-MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None)     # e.g., "Processed/Bookings"
+MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", "Processed/Bookings")     # e.g., ""
 
 BOOKING_SUBJECT_HINT = re.compile(
     r"""^(?:\s*(?:re|fwd)\s*:\s*)*              # optional Re:/Fwd:
@@ -135,7 +135,6 @@ def _is_already_booked(appt: Dict[str, Any]) -> bool:
     for record in records:
         stage = (record.get("Stage") or "").strip().lower()
         if stage == "booked":
-            print("[BEBUG] Is BOOKED")
             return True
     return False
 
@@ -194,7 +193,6 @@ def process_bookings_once(verbose: bool = True) -> int:
 
                 if not _looks_like_booking(subj):
                     continue
-                
 
                 appt = parse_mail(body)
                 

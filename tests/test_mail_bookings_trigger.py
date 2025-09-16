@@ -1,5 +1,4 @@
 ﻿import types
-
 import pytest
 
 from app.tasks import mail_bookings_trigger as bookings
