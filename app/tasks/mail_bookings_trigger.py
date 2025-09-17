@@ -83,69 +83,82 @@ def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
     Expected keys in appt: email, first_name, last_name, phone.
     """
-    email_addr = (appt.get("customer_email") or "").strip()
-    if not email_addr:
-        return None
+    num_tries = 3
+    for _ in range(num_tries):
+        try:
+            email_addr = (appt.get("customer_email") or "").strip()
+            if not email_addr:
+                return None
 
-    if c := search_contact_by_email(email_addr):
-        return c
+            if c := search_contact_by_email(email_addr):
+                return c
 
-    contact_payload = {
-        key: value
-        for key, value in (
-            ("Email", email_addr),
-            ("First_Name", (appt.get("customer_first_name") or "").strip() or None),
-            ("Last_Name", (appt.get("customer_last_name") or "").strip() or None),
-            ("Phone", (appt.get("customer_phone") or "").strip() or None),
-        )
-        if value
-    }
-    body = {
-        "data": [contact_payload],
-        "trigger": [],
-    }
-    res = bigin_post("Contacts", body)
-    data = (res.get("data") or [])
+            contact_payload = {
+                key: value
+                for key, value in (
+                    ("Email", email_addr),
+                    ("First_Name", (appt.get("customer_first_name") or "").strip() or None),
+                    ("Last_Name", (appt.get("customer_last_name") or "").strip() or None),
+                    ("Phone", (appt.get("customer_phone") or "").strip() or None),
+                )
+                if value
+            }
+            body = {
+                "data": [contact_payload],
+                "trigger": [],
+            }
+            res = bigin_post("Contacts", body)
+            data = (res.get("data") or [])
 
-    # Poll for the freshly created record to become searchable
-    contact: Optional[Dict[str, Any]] = None
-    for _ in range(20):
-        contact = search_contact_by_email(email_addr)
-        if contact:
-            break
-        time.sleep(10)
-    else:
-        raise ValueError(f"Could not find Contact with Email={email_addr}")
+            # Poll for the freshly created record to become searchable
+            contact: Optional[Dict[str, Any]] = None
+            for _ in range(20):
+                contact = search_contact_by_email(email_addr)
+                if contact:
+                    break
+                time.sleep(10)
+            else:
+                raise ValueError(f"Could not find Contact with Email={email_addr}")
 
-    if data and data[0].get("status") == "success":
-        return contact
-    return None
+            if data and data[0].get("status") == "success":
+                return contact
+            return None
+        except Exception as e:
+            print(f"[error] Exception in _ensure_contact: {e}")
+            time.sleep(10)
 
 
 def _is_already_booked(appt: Dict[str, Any]) -> bool:
-    email_addr = (appt.get("customer_email") or "").strip()
-    if not email_addr:
-        return False
+    try:
+        email_addr = (appt.get("customer_email") or "").strip()
+        if not email_addr:
+            return False
 
-    contact = search_contact_by_email(email_addr)
-    if not contact or not contact.get("id"):
-        return False
+        contact = search_contact_by_email(email_addr)
+        if not contact or not contact.get("id"):
+            return False
 
-    records = list_records_by_contact_id(contact["id"], fields=["Stage"])
-    for record in records:
-        stage = (record.get("Stage") or "").strip().lower()
-        if stage == "booked":
-            return True
-    return False
+        records = list_records_by_contact_id(contact["id"], fields=["Stage"])
+        for record in records:
+            stage = (record.get("Stage") or "").strip().lower()
+            if stage == "booked":
+                return True
+        return False
+    except Exception as e:
+        print(f"[error] Exception in _is_already_booked: {e}")
 
 
 def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
     """
     Minimal: mark contact + their related records as Booked.
     """
-    contact_id = contact["id"]
-    update_contact_fields(contact_id, {"Status": "Booked"})
-    update_records_by_contact_id(contact_id, {"Stage": "Booked"})
+    try:
+        contact_id = contact["id"]
+        update_contact_fields(contact_id, {"Status": "Booked"})
+        update_records_by_contact_id(contact_id, {"Stage": "Booked"})
+    except Exception as e:
+        print(f"[error] Exception in _upsert_pipeline_record: {e}")
+        
 
 # ---------------------------------------------------------------------
 # Main
@@ -195,6 +208,8 @@ def process_bookings_once(verbose: bool = True) -> int:
                     continue
 
                 appt = parse_mail(body)
+                if verbose:
+                    print("[info] appt successfully parsed")
                 
                 if _is_already_booked(appt):
                     processed = True

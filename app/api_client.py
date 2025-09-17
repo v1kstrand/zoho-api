@@ -345,3 +345,5 @@ def create_pipeline_record_for_contact(contact_id: str) -> Dict[str, Any]:
         "trigger": [],
     }
     return bigin_post("Pipelines", payload)
+
+

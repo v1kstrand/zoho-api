@@ -12,7 +12,6 @@ NAME_PHONE_SPLIT = re.compile(r"\s*[-\u2013\u2014]\s*")
 BETWEEN_RE = re.compile(r"between\s+.+?\s+and\s+(.+)", re.I)
 
 def parse_mail(body):
-
     body = body.strip()
 
     EMAIL = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
