@@ -1,9 +1,9 @@
 # app/api_client.py
 from __future__ import annotations
 
-import os, json, time
+import os, json, time, csv
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 import requests
 from dotenv import load_dotenv
 
@@ -123,7 +123,7 @@ def _bigin_request(method: str, path: str, *, params: JSON | None = None, body: 
         r.raise_for_status()
         return _json_or_empty(r)
 
-    # if loop exits without return (shouldn’t happen), raise last
+    # if loop exits without return (shouldnÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢t happen), raise last
     r.raise_for_status()  # type: ignore[name-defined]
     return {}
 
@@ -172,6 +172,62 @@ def update_contact_fields(contact_id: str, fields: JSON) -> JSON:
     if not isinstance(fields, dict) or not fields:
         raise ValueError("`fields` must be a non-empty dict")
     return update_module_fields("Contacts", contact_id, fields)
+
+
+
+def iter_contacts(*, fields: List[str] | None = None, page_size: int = 200) -> Iterator[JSON]:
+    """Yield Contact rows; when ``fields`` is ``None`` hydrates each id for full data."""
+    if page_size <= 0:
+        raise ValueError("page_size must be positive")
+    field_list = list(dict.fromkeys(fields)) if fields else None
+    hydrate = not field_list
+    list_fields = ",".join(field_list) if field_list else "id"
+    page = 1
+    while True:
+        params: JSON = {"page": page, "per_page": page_size, "fields": list_fields}
+        res = _bigin_request("GET", "Contacts", params=params)
+        chunk = res.get("data") or []
+        for row in chunk:
+            if hydrate:
+                contact_id = row.get("id")
+                if not contact_id:
+                    continue
+                full = get_contact_by_id(contact_id)
+                if full:
+                    yield full
+                else:
+                    yield row
+            else:
+                yield row
+        if not chunk:
+            break
+        info = res.get("info") or {}
+        if not info.get("more_records"):
+            break
+        page += 1
+
+
+def export_contacts_to_csv(csv_path: str | Path, *, fields: List[str] | None = None, page_size: int = 200) -> Path:
+    """Fetch every Contact and persist it to ``csv_path``."""
+    dest = Path(csv_path)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    field_list = list(dict.fromkeys(fields)) if fields else None
+    rows = list(iter_contacts(fields=field_list, page_size=page_size))
+    if field_list:
+        columns = field_list
+    else:
+        keys = set()
+        for row in rows:
+            keys.update(row.keys())
+        columns = sorted(keys)
+    with dest.open("w", newline="", encoding="utf-8") as fh:
+        if columns:
+            writer = csv.DictWriter(fh, fieldnames=columns)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({name: row.get(name, "") for name in columns})
+    return dest
+
 
 # ------------------------------------------------------------
 # Generic: related lists & module updates

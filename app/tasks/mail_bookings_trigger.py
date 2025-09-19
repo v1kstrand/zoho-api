@@ -1,4 +1,4 @@
-# app/tasks/mail_bookings_trigger.py
+﻿# app/tasks/mail_bookings_trigger.py
 from __future__ import annotations
 
 import email
@@ -9,16 +9,14 @@ import time
 from email.header import decode_header, make_header
 from typing import Any, Dict, Optional
 
-# Reuse your API client + shared settings
-from ..api_client import (
-    bigin_post,
-    search_contact_by_email,
-    update_records_by_contact_id,
-    update_contact_fields,
-    list_records_by_contact_id,
-)
+from dotenv import load_dotenv
+load_dotenv()
+
+from ..api_client_csv import find_contact_by_email, upsert_contact, update_contact, get_contact_field
 from ..parse_mail import parse_mail
 from ..mail_utils import ensure_mailbox, message_body_text, move_message
+
+load_dotenv()
 
 # ---------------------------------------------------------------------
 # Config / Environment
@@ -28,7 +26,7 @@ IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
 
 BOOKING_FOLDER = os.getenv("BOOKING_FOLDER", "INBOX")
-MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", "Processed/Bookings")     # e.g., ""
+MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None)
 
 BOOKING_SUBJECT_HINT = re.compile(
     r"""^(?:\s*(?:re|fwd)\s*:\s*)*              # optional Re:/Fwd:
@@ -39,10 +37,10 @@ BOOKING_SUBJECT_HINT = re.compile(
     re.I | re.X,
 )
 
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
 
-# ---------------------------------------------------------------------
-# IMAP helpers
-# ---------------------------------------------------------------------
 def _imap_connect_with_retry(
     host: str,
     user: str,
@@ -75,94 +73,44 @@ def _imap_connect_with_retry(
     raise last
 
 
-# ---------------------------------------------------------------------
-# Bigin upserts (Contacts & Records)
-# ---------------------------------------------------------------------
 def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Find or create a Contact from a Bookings appointment dict shaped by get_appointment().
-    Expected keys in appt: email, first_name, last_name, phone.
-    """
-    num_tries = 3
-    for _ in range(num_tries):
-        try:
-            email_addr = (appt.get("customer_email") or "").strip()
-            if not email_addr:
-                return None
+    email_addr = (appt.get("customer_email") or "").strip()
+    if not email_addr:
+        return None
 
-            if c := search_contact_by_email(email_addr):
-                return c
-
-            contact_payload = {
-                key: value
-                for key, value in (
-                    ("Email", email_addr),
-                    ("First_Name", (appt.get("customer_first_name") or "").strip() or None),
-                    ("Last_Name", (appt.get("customer_last_name") or "").strip() or None),
-                    ("Phone", (appt.get("customer_phone") or "").strip() or None),
-                )
-                if value
-            }
-            body = {
-                "data": [contact_payload],
-                "trigger": [],
-            }
-            res = bigin_post("Contacts", body)
-            data = (res.get("data") or [])
-
-            # Poll for the freshly created record to become searchable
-            contact: Optional[Dict[str, Any]] = None
-            for _ in range(20):
-                contact = search_contact_by_email(email_addr)
-                if contact:
-                    break
-                time.sleep(10)
-            else:
-                raise ValueError(f"Could not find Contact with Email={email_addr}")
-
-            if data and data[0].get("status") == "success":
-                return contact
-            return None
-        except Exception as e:
-            print(f"[error] Exception in _ensure_contact: {e}")
-            time.sleep(10)
+    payload: Dict[str, Any] = {
+        "email": email_addr,
+        "first_name": (appt.get("customer_first_name") or "").strip() or None,
+        "last_name": (appt.get("customer_last_name") or "").strip() or None,
+        #"phone": (appt.get("customer_phone") or "").strip() or None,
+    }
+    try:
+        return upsert_contact({k: v for k, v in payload.items() if v is not None})
+    except Exception as exc:
+        print(f"[error] failed to upsert contact for {email_addr}: {exc}")
+        return None
 
 
 def _is_already_booked(appt: Dict[str, Any]) -> bool:
-    try:
-        email_addr = (appt.get("customer_email") or "").strip()
-        if not email_addr:
-            return False
-
-        contact = search_contact_by_email(email_addr)
-        if not contact or not contact.get("id"):
-            return False
-
-        records = list_records_by_contact_id(contact["id"], fields=["Stage"])
-        for record in records:
-            stage = (record.get("Stage") or "").strip().lower()
-            if stage == "booked":
-                return True
+    email_addr = (appt.get("customer_email") or "").strip()
+    if not email_addr:
         return False
-    except Exception as e:
-        print(f"[error] Exception in _is_already_booked: {e}")
+    contact = find_contact_by_email(email_addr)
+    if not contact:
+        return False
+    return (contact.get("stage") or "").strip().lower() == "booked"
 
 
-def _upsert_pipeline_record(contact: Dict[str, Any]) -> None:
-    """
-    Minimal: mark contact + their related records as Booked.
-    """
+def _mark_contact_booked(contact: Dict[str, Any]) -> None:
+    contact_id = contact.get("id")
+    if not contact_id:
+        return
     try:
-        contact_id = contact["id"]
-        update_contact_fields(contact_id, {"Status": "Booked"})
-        update_records_by_contact_id(contact_id, {"Stage": "Booked"})
-    except Exception as e:
-        print(f"[error] Exception in _upsert_pipeline_record: {e}")
-        
+        update_contact(contact_id, {"stage": "Booked"})
+    except Exception as exc:
+        print(f"[warn] failed to set stage=Booked for {contact_id}: {exc}")
 
-# ---------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------
+
 def _subject(msg: email.message.Message) -> str:
     return str(make_header(decode_header(msg.get("Subject", ""))))
 
@@ -170,11 +118,12 @@ def _subject(msg: email.message.Message) -> str:
 def _looks_like_booking(subj: str) -> bool:
     return bool(BOOKING_SUBJECT_HINT.search(subj))
 
+# ---------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------
+
 def process_bookings_once(verbose: bool = True) -> int:
-    """
-    Scan BOOKING_FOLDER for unseen booking mails, upsert Contact + Pipeline, and
-    (optionally) move processed mails. Returns the count of handled booking mails.
-    """
+    """Scan for booking mails and ensure corresponding contacts exist."""
     assert IMAP_USER and IMAP_PASS, "Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment"
 
     imap = _imap_connect_with_retry(
@@ -202,15 +151,16 @@ def process_bookings_once(verbose: bool = True) -> int:
 
                 msg = email.message_from_bytes(fetch[0][1])
                 subj = _subject(msg)
-                body = message_body_text(msg)
-
+                if verbose:
+                    print(subj)
                 if not _looks_like_booking(subj):
                     continue
 
+                body = message_body_text(msg)
                 appt = parse_mail(body)
                 if verbose:
-                    print("[info] appt successfully parsed")
-                
+                    print("[info] appointment parsed")
+
                 if _is_already_booked(appt):
                     processed = True
                     if verbose:
@@ -223,20 +173,20 @@ def process_bookings_once(verbose: bool = True) -> int:
                         print("[warn] booking mail missing customer email; skipping")
                     continue
 
-                c = _ensure_contact(appt)
-                if c:
-                    _upsert_pipeline_record(c)
+                contact = _ensure_contact(appt)
+                if contact:
+                    _mark_contact_booked(contact)
                     handled += 1
                     processed = True
                     if verbose:
-                        who = c.get("Email") or c.get("email") or c.get("id")
-                        print(f"[ok] upserted pipeline for {who}")
+                        who = contact.get("Email") or contact.get("Contact Id")
+                        print(f"[ok] updated booking stage for {who}")
                 else:
                     if verbose:
                         print("[warn] could not ensure contact (likely no email in appointment)")
-            except Exception as e:
+            except Exception as exc:
                 if verbose:
-                    print(f"[error] failed to handle booking uid {uid}: {e}")
+                    print(f"[error] failed to handle booking uid {uid}: {exc}")
             finally:
                 if MOVE_BOOKING_TO and processed:
                     move_message(imap, uid, MOVE_BOOKING_TO)
@@ -254,6 +204,7 @@ def process_bookings_once(verbose: bool = True) -> int:
     if verbose:
         print(f"[done] handled {handled} booking email(s).")
     return handled
+
 
 if __name__ == "__main__":
     process_bookings_once()

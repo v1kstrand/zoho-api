@@ -1,0 +1,209 @@
+id,contact_name,company_name,email,first_name,last_name,contact_type,created_time,outreach_idx,auto_number,last_touch_date,stage,notes,unsub
+zcrm_886415000000505005,Annette Vikstrand,,vikstrand10@gmail.com,Annette,Vikstrand,,2025-09-08 22:11:21,,201,,,,False
+zcrm_886415000000505006,Axel Fureman,,axelfureman98@gmail.com,Axel,Fureman,,2025-09-08 22:11:21,,202,,Booked,,False
+zcrm_886415000000509378,Daniel Muhlbach,eCom Teams Sweden AB,daniel.muhlbach@footway.com,Daniel,Muhlbach,Personal,2025-09-04 14:08:17,,1,,New,,False
+zcrm_886415000000509379,Hercules Ostberg,Bodyflight Sweden AB,hercules.ostberg@bodyflight.se,Hercules,Ostberg,Personal,2025-09-04 14:08:17,,2,,New,,False
+zcrm_886415000000509380,Anders Bjorkenbo,Sustainable Energy Solutions Sweden Holding AB (SENS),anders.bjorkenbo@sens.se,Anders,Bjorkenbo,Personal,2025-09-04 14:08:17,,3,,New,,False
+zcrm_886415000000509381,Carl-Johan Ivarsson,Qlucore AB,carl-johan.ivarsson@qlucore.com,Carl-Johan,Ivarsson,Personal,2025-09-04 14:08:17,,4,,New,,False
+zcrm_886415000000509382,Lena Sundquist,Climeon AB,lena.sundquist@climeon.com,Lena,Sundquist,Personal,2025-09-04 14:08:17,,5,,New,,False
+zcrm_886415000000509383,Rickard Jacobson,Dlaboratory Sweden AB (dLab),rickard.jacobson@dlaboratory.com,Rickard,Jacobson,Personal,2025-09-04 14:08:17,,6,,New,,False
+zcrm_886415000000509384,Karl Johan,Stakater,karl.johan@stakater.com,Karl,Johan,Personal,2025-09-04 14:08:17,,7,,New,,False
+zcrm_886415000000509385,Roger Persson,nxtedition,roger.persson@nxtedition.com,Roger,Persson,Personal,2025-09-04 14:08:17,,8,,New,,False
+zcrm_886415000000509386,Jonas Ceder,Trifilon,jonas.ceder@trifilon.com,Jonas,Ceder,Personal,2025-09-04 14:08:17,,9,,New,,False
+zcrm_886415000000509387,Hakan Cronqvist,Noratel Sweden AB,hakan.cronqvist@noratel.com,Hakan,Cronqvist,Personal,2025-09-04 14:08:17,,10,,New,,False
+zcrm_886415000000509388,Anna Krusenstierna,Oxyma Innovation AB,anna.von.krusenstierna@oxyma.se,Anna,Krusenstierna,Personal,2025-09-04 14:08:17,,11,,New,,False
+zcrm_886415000000509389,Laurine Combasson,L:A Bruket,laurine.combasson@labruket.com,Laurine,Combasson,Personal,2025-09-04 14:08:17,,12,,New,,False
+zcrm_886415000000509390,Thomas Gorres,L:A Bruket,thomas.gorres@labruket.com,Thomas,Gorres,Personal,2025-09-04 14:08:17,,13,,New,,False
+zcrm_886415000000509391,Hedda Nystrom,Caia Cosmetics,hedda.nystrom@patrikssongroup.com,Hedda,Nystrom,Personal,2025-09-04 14:08:17,,14,,New,,False
+zcrm_886415000000509392,Karolina Strand,Björn Axén,karolina.strand@bjornaxen.se,Karolina,Strand,Personal,2025-09-04 14:08:17,,15,,New,,False
+zcrm_886415000000509393,Fanny Axelsson,Björn Axén,fanny.axelsson@bjornaxen.se,Fanny,Axelsson,Personal,2025-09-04 14:08:17,,16,,New,,False
+zcrm_886415000000509394,Fanny Engstrom,Björn Axén,fanny.engstrom@bjornaxen.se,Fanny,Engstrom,Personal,2025-09-04 14:08:17,,17,,New,,False
+zcrm_886415000000509395,John Hermansson,IDA WARG Beauty,john.hermansson@idawargbeauty.se,John,Hermansson,Personal,2025-09-04 14:08:17,,18,,New,,False
+zcrm_886415000000509396,Magnus Nylen,Indy Beauty,magnus.nylen@trimb.se,Magnus,Nylen,Personal,2025-09-04 14:08:17,,19,,New,,False
+zcrm_886415000000509397,Anders Larnholt,Indy Beauty,anders.larnholt@trimb.se,Anders,Larnholt,Personal,2025-09-04 14:08:17,,20,,New,,False
+zcrm_886415000000509398,Linda Hallberg,LH Cosmetics,linda.hallberg@wearecube.se,Linda,Hallberg,Personal,2025-09-04 14:08:17,,21,,New,,False
+zcrm_886415000000509399,Johan Lovqvist,Tenson,johan.lovqvist@tenson.com,Johan,Lovqvist,Personal,2025-09-04 14:08:17,,22,,New,,False
+zcrm_886415000000509400,Fredrik Correa,Exxentric,fredrik.correa@exxentric.com,Fredrik,Correa,Personal,2025-09-04 14:08:17,1.0,23,,Intro Sent,,False
+zcrm_886415000000509401,Luke Insoll,Volumental,luke.insoll@volumental.com,Luke,Insoll,Personal,2025-09-04 14:08:17,,24,,New,,False
+zcrm_886415000000509402,Erik Blomberg,Eleiko Group AB,erik.blomberg@eleiko.com,Erik,Blomberg,Personal,2025-09-04 14:08:17,1.0,25,,Intro Sent,,False
+zcrm_886415000000509403,Erik Jivmark,Sleep Cycle AB (publ),erik.jivmark@sleepcycle.com,Erik,Jivmark,Personal,2025-09-04 14:08:17,1.0,26,,Intro Sent,,False
+zcrm_886415000000509404,Olof Skold,Maurten AB,olof.skold@maurten.com,Olof,Skold,Personal,2025-09-04 14:08:17,1.0,27,,Intro Sent,,False
+zcrm_886415000000509405,Emelie Gustafsson,Heliospectra AB (publ),emelie.gustafsson@heliospectra.com,Emelie,Gustafsson,Personal,2025-09-04 14:08:17,,28,,New,,False
+zcrm_886415000000509406,Johan Rubenson,Heliospectra AB (publ),johan.rubenson@heliospectra.com,Johan,Rubenson,Personal,2025-09-04 14:08:17,,29,,New,,False
+zcrm_886415000000509407,Alexander Hellstrom,LumenRadio AB,alexander.hellstrom@lumenradio.com,Alexander,Hellstrom,Personal,2025-09-04 14:08:17,,30,,New,,False
+zcrm_886415000000509408,Josef Hederstrom,LumenRadio AB,josef.hederstrom@lumenradio.com,Josef,Hederstrom,Personal,2025-09-04 14:08:17,,31,,New,,False
+zcrm_886415000000511522,Eric edyoutec AB,edyoutec AB,eric@edyoutec.com,Eric,edyoutec AB,Personal,2025-09-04 14:30:24,1.0,32,,Intro Sent,,False
+zcrm_886415000000511523,Maria ABAS Protect AB,ABAS Protect AB,maria@abas.se,Maria,ABAS Protect AB,Personal,2025-09-04 14:30:24,,33,,New,,False
+zcrm_886415000000511524,Tomas ABAS Protect AB,ABAS Protect AB,tomas@abas.se,Tomas,ABAS Protect AB,Personal,2025-09-04 14:30:24,,34,,New,,False
+zcrm_886415000000511525,Martin Minesto AB,Minesto AB,martin.edlund@minesto.com,Martin,Minesto AB,Press/Generic,2025-09-04 14:30:24,,35,,New,,False
+zcrm_886415000000511526,Erik Helicon Technologies,Helicon Technologies,erik@helicon.ai,Erik,Helicon Technologies,Personal,2025-09-04 14:30:24,1.0,36,,Intro Sent,,False
+zcrm_886415000000511527,Patricia Mapiful,Mapiful,patricia@mapiful.com,Patricia,Mapiful,Personal,2025-09-04 14:30:24,,37,,New,,False
+zcrm_886415000000511528,Edvin Mapiful,Mapiful,edvin@mapiful.com,Edvin,Mapiful,Personal,2025-09-04 14:30:24,,38,,New,,False
+zcrm_886415000000511529,Danny GLOMO,GLOMO,danny@glomo.com,Danny,GLOMO,Personal,2025-09-04 14:30:24,,39,,New,,False
+zcrm_886415000000511530,Ben GLOMO,GLOMO,ben@glomo.com,Ben,GLOMO,Personal,2025-09-04 14:30:24,,40,,New,,False
+zcrm_886415000000511531,Jacob Fantasma Games,Fantasma Games,jacob@fantasmagames.com,Jacob,Fantasma Games,Personal,2025-09-04 14:30:24,,41,,New,,False
+zcrm_886415000000511532,Fredrik Fantasma Games,Fantasma Games,fredrik@fantasmagames.com,Fredrik,Fantasma Games,Personal,2025-09-04 14:30:24,,42,,New,,False
+zcrm_886415000000511533,Leon Liquid Swords,Liquid Swords,leon.loughran@liquidswords.com,Leon,Liquid Swords,Press/Generic,2025-09-04 14:30:24,,43,,New,,False
+zcrm_886415000000511534,Anton Klimato,Klimato,anton@klimato.com,Anton,Klimato,Personal,2025-09-04 14:30:24,,44,,New,,False
+zcrm_886415000000511535,Cecilia Trifilon,Trifilon,cecilia@trifilon.com,Cecilia,Trifilon,Personal,2025-09-04 14:30:24,,45,,New,,False
+zcrm_886415000000511536,Edh Bioextrax,Bioextrax,edh@bioextrax.com,Edh,Bioextrax,Personal,2025-09-04 14:30:24,,46,,New,,False
+zcrm_886415000000511537,Ulrich Luma Metall AB,Luma Metall AB,ulrich.stohr@luma-metall.se,Ulrich,Luma Metall AB,Press/Generic,2025-09-04 14:30:24,,47,,New,,False
+zcrm_886415000000511538,IR Stockholm,Stockholm,ir@safello.com,IR,Stockholm,Press/Generic,2025-09-04 14:30:24,,48,,New,,False
+zcrm_886415000000511539,IR ZignSec AB,ZignSec AB,ir@zignsec.com,IR,ZignSec AB,Press/Generic,2025-09-04 14:30:24,,49,,New,,False
+zcrm_886415000000511540,Johan c/o Gerd (Care of Gerd),c/o Gerd (Care of Gerd),johan@careofgerd.se,Johan,c/o Gerd (Care of Gerd),Personal,2025-09-04 14:30:24,,50,,New,,False
+zcrm_886415000000511541,Maria Maria Åkerberg,Maria Åkerberg,maria@dermanord.se,Maria,Maria Åkerberg,Personal,2025-09-04 14:30:24,,51,,New,,False
+zcrm_886415000000511542,Lars Verso Skincare,Verso Skincare,lars@versoskincare.com,Lars,Verso Skincare,Personal,2025-09-04 14:30:24,,52,,New,,False
+zcrm_886415000000511543,Info L:A Bruket,L:A Bruket,info@labruket.com,Info,L:A Bruket,Press/Generic,2025-09-04 14:30:24,,53,,New,,False
+zcrm_886415000000511544,Info Estelle & Thild,Estelle & Thild,info@estellethild.se,Info,Estelle & Thild,Press/Generic,2025-09-04 14:30:24,,54,,New,,False
+zcrm_886415000000511545,Newretailers Estelle & Thild,Estelle & Thild,newretailers@estellethild.se,Newretailers,Estelle & Thild,Personal,2025-09-04 14:30:24,,55,,New,,False
+zcrm_886415000000511546,Weborders Estelle & Thild,Estelle & Thild,weborders@estellethild.se,Weborders,Estelle & Thild,Press/Generic,2025-09-04 14:30:24,,56,,New,,False
+zcrm_886415000000511547,Info Caia Cosmetics,Caia Cosmetics,info@caiacosmetics.com,Info,Caia Cosmetics,Press/Generic,2025-09-04 14:30:24,,57,,New,,False
+zcrm_886415000000511548,Shirin Sweed Beauty,Sweed Beauty,shirin@sweedbeauty.com,Shirin,Sweed Beauty,Press/Generic,2025-09-04 14:30:24,,58,,New,,False
+zcrm_886415000000511549,Babba Ceremonia,Ceremonia,babba@ceremonia.com,Babba,Ceremonia,Personal,2025-09-04 14:30:24,,59,,New,,False
+zcrm_886415000000511550,Helena Under Your Skin,Under Your Skin,helena@underyourskin.se,Helena,Under Your Skin,Personal,2025-09-04 14:30:24,,60,,New,,False
+zcrm_886415000000511551,Johan Better You,Better You,johan@betteryou.se,Johan,Better You,Personal,2025-09-04 14:30:24,,61,,New,,False
+zcrm_886415000000511552,Letters Stora Skuggan,Stora Skuggan,letters@storaskuggan.com,Letters,Stora Skuggan,Personal,2025-09-04 14:30:24,,62,,New,,False
+zcrm_886415000000511553,Niclas Cra-Yon,Cra-Yon,niclas@agonistparfums.com,Niclas,Cra-Yon,Personal,2025-09-04 14:30:24,,63,,New,,False
+zcrm_886415000000511554,Ecom IDUN Minerals,IDUN Minerals,ecom@idunminerals.com,Ecom,IDUN Minerals,Personal,2025-09-04 14:30:24,,64,,New,,False
+zcrm_886415000000511555,Mette M Picaut Swedish Skincare,M Picaut Swedish Skincare,mette@mettepicaut.se,Mette,M Picaut Swedish Skincare,Personal,2025-09-04 14:30:24,,65,,New,,False
+zcrm_886415000000511556,Eric M Picaut Swedish Skincare,M Picaut Swedish Skincare,eric@mettepicaut.se,Eric,M Picaut Swedish Skincare,Personal,2025-09-04 14:30:24,,66,,New,,False
+zcrm_886415000000511557,Christel M Picaut Swedish Skincare,M Picaut Swedish Skincare,christel@mettepicaut.se,Christel,M Picaut Swedish Skincare,Press/Generic,2025-09-04 14:30:24,,67,,New,,False
+zcrm_886415000000511558,Marie M Picaut Swedish Skincare,M Picaut Swedish Skincare,marie@mettepicaut.se,Marie,M Picaut Swedish Skincare,Personal,2025-09-04 14:30:24,,68,,New,,False
+zcrm_886415000000511559,Jessica M Picaut Swedish Skincare,M Picaut Swedish Skincare,jessica@mettepicaut.se,Jessica,M Picaut Swedish Skincare,Personal,2025-09-04 14:30:24,,69,,New,,False
+zcrm_886415000000511560,Angelica M Picaut Swedish Skincare,M Picaut Swedish Skincare,angelica@mettepicaut.se,Angelica,M Picaut Swedish Skincare,Personal,2025-09-04 14:30:24,,70,,New,,False
+zcrm_886415000000511561,Rs Rosenserien,Rosenserien,rs@rosenserien.com,Rs,Rosenserien,Personal,2025-09-04 14:30:24,,71,,New,,False
+zcrm_886415000000511562,Alexander Stutterheim,Stutterheim,alexander@stutterheim.se,Alexander,Stutterheim,Personal,2025-09-04 14:30:24,,72,,New,,False
+zcrm_886415000000511563,Calle Kavat,Kavat,calle@kavat.com,Calle,Kavat,Personal,2025-09-04 14:30:24,,73,,New,,False
+zcrm_886415000000511564,Caroline Sandqvist,Sandqvist,caroline@sandqvist.com,Caroline,Sandqvist,Personal,2025-09-04 14:30:24,1.0,74,,Intro Sent,,False
+zcrm_886415000000511565,Asim Stiksen,Stiksen,asim@stiksen.com,Asim,Stiksen,Personal,2025-09-04 14:30:24,1.0,75,,Intro Sent,,False
+zcrm_886415000000511566,Monica Gymleco,Gymleco,monica@gymleco.se,Monica,Gymleco,Personal,2025-09-04 14:30:24,,76,,New,,False
+zcrm_886415000000511567,David Icebug AB,Icebug AB,david.ekelund@icebug.se,David,Icebug AB,Personal,2025-09-04 14:30:24,1.0,77,,Intro Sent,,False
+zcrm_886415000000511568,Lucas Flowlife AB,Flowlife AB,lucas@flowlife.com,Lucas,Flowlife AB,Personal,2025-09-04 14:30:24,,78,,New,,False
+zcrm_886415000000511569,Akeson ProteinBolaget i Sverige AB,ProteinBolaget i Sverige AB,akeson@proteinbolaget.se,Akeson,ProteinBolaget i Sverige AB,Personal,2025-09-04 14:30:24,,79,,New,,False
+zcrm_886415000000511570,Elina NaturalCycles Nordic AB,NaturalCycles Nordic AB,elina.berglund@naturalcycles.com,Elina,NaturalCycles Nordic AB,Personal,2025-09-04 14:30:24,1.0,80,,Intro Sent,,False
+zcrm_886415000000511571,Bengt Fairford Holdings,Fairford Holdings,bengt@fairfordholdings.com,Bengt,Fairford Holdings,Personal,2025-09-04 14:30:24,,81,,New,,False
+zcrm_886415000000511572,Emilie Fairford Holdings,Fairford Holdings,emilie@fairfordholdings.com,Emilie,Fairford Holdings,Personal,2025-09-04 14:30:24,,82,,New,,False
+zcrm_886415000000511573,Eva Fairford Holdings,Fairford Holdings,eva@fairfordholdings.com,Eva,Fairford Holdings,Personal,2025-09-04 14:30:24,,83,,New,,False
+zcrm_886415000000511574,Marie Fairford Holdings,Fairford Holdings,marie@fairfordholdings.com,Marie,Fairford Holdings,Personal,2025-09-04 14:30:24,,84,,New,,False
+zcrm_886415000000511575,Mattias Fairford Holdings,Fairford Holdings,mattias@fairfordholdings.com,Mattias,Fairford Holdings,Personal,2025-09-04 14:30:24,,85,,New,,False
+zcrm_886415000000511576,Peter Fairford Holdings,Fairford Holdings,peter@fairfordholdings.com,Peter,Fairford Holdings,Personal,2025-09-04 14:30:24,,86,,New,,False
+zcrm_886415000000511577,Robert Fairford Holdings,Fairford Holdings,robert@fairfordholdings.com,Robert,Fairford Holdings,Personal,2025-09-04 14:30:24,,87,,New,,False
+zcrm_886415000000511578,Marcus C3C Engineering AB,C3C Engineering AB,marcus@c3c.se,Marcus,C3C Engineering AB,Personal,2025-09-04 14:30:24,,88,,New,,False
+zcrm_886415000000511579,Maria C3C Engineering AB,C3C Engineering AB,maria@c3c.se,Maria,C3C Engineering AB,Personal,2025-09-04 14:30:24,,89,,New,,False
+zcrm_886415000000511580,Mwg Ecoride AB,Ecoride AB,mwg@ecoride.com,Mwg,Ecoride AB,Personal,2025-09-04 14:30:24,,90,,New,,False
+zcrm_886415000000511581,Jens Textalk AB,Textalk AB,jens@textalk.se,Jens,Textalk AB,Personal,2025-09-04 14:30:24,,91,,New,,False
+zcrm_886415000000511582,IR eCom Teams Sweden AB,eCom Teams Sweden AB,ir@ecomteams.com,IR,eCom Teams Sweden AB,Press/Generic,2025-09-04 14:30:24,,92,,New,,False
+zcrm_886415000000511583,Göteborg Bodyflight Sweden AB,Bodyflight Sweden AB,goteborg@bodyflight.se,Göteborg,Bodyflight Sweden AB,Press/Generic,2025-09-04 14:30:24,,93,,New,,False
+zcrm_886415000000511584,Info edyoutec AB,edyoutec AB,info@edyoutec.com,Info,edyoutec AB,Press/Generic,2025-09-04 14:30:24,1.0,94,,New,,False
+zcrm_886415000000511585,Info Sustainable Energy Solutions Sweden Holding AB (SENS),Sustainable Energy Solutions Sweden Holding AB (SENS),info@sens.se,Info,Sustainable Energy Solutions Sweden Holding AB (SENS),Press/Generic,2025-09-04 14:30:24,,95,,New,,False
+zcrm_886415000000511586,Qlucoreinfo Qlucore AB,Qlucore AB,qlucoreinfo@qlucore.com,Qlucoreinfo,Qlucore AB,Press/Generic,2025-09-04 14:30:24,,96,,New,,False
+zcrm_886415000000511587,Info Climeon AB,Climeon AB,info@climeon.com,Info,Climeon AB,Press/Generic,2025-09-04 14:30:24,,97,,New,,False
+zcrm_886415000000511588,Info Minesto AB,Minesto AB,info@minesto.com,Info,Minesto AB,Press/Generic,2025-09-04 14:30:24,,98,,New,,False
+zcrm_886415000000511589,Info Helicon Technologies,Helicon Technologies,info@helicon.ai,Info,Helicon Technologies,Press/Generic,2025-09-04 14:30:24,1.0,99,,New,,False
+zcrm_886415000000511590,Info Fantasma Games,Fantasma Games,info@fantasmagames.com,Info,Fantasma Games,Press/Generic,2025-09-04 14:30:24,,100,,New,,False
+zcrm_886415000000511591,Media Liquid Swords,Liquid Swords,media@liquidswords.com,Media,Liquid Swords,Press/Generic,2025-09-04 14:30:24,,101,,New,,False
+zcrm_886415000000511592,Hello Stakater,Stakater,hello@stakater.com,Hello,Stakater,Press/Generic,2025-09-04 14:30:24,,102,,New,,False
+zcrm_886415000000511593,Info nxtedition,nxtedition,info@nxtedition.com,Info,nxtedition,Press/Generic,2025-09-04 14:30:24,,103,,New,,False
+zcrm_886415000000511594,Info Midjiwan,Midjiwan,info@midjiwan.com,Info,Midjiwan,Press/Generic,2025-09-04 14:30:24,,104,,New,,False
+zcrm_886415000000511595,Info TROOPR,TROOPR,info@troopr.se,Info,TROOPR,Press/Generic,2025-09-04 14:30:24,,105,,New,,False
+zcrm_886415000000511596,Hello Your Beet,Your Beet,hello@yourbeet.app,Hello,Your Beet,Press/Generic,2025-09-04 14:30:24,,106,,New,,False
+zcrm_886415000000511597,Info Klimato,Klimato,info@klimato.com,Info,Klimato,Press/Generic,2025-09-04 14:30:24,,107,,New,,False
+zcrm_886415000000511598,Info Trifilon,Trifilon,info@trifilon.com,Info,Trifilon,Press/Generic,2025-09-04 14:30:24,,108,,New,,False
+zcrm_886415000000511599,Info Bioextrax,Bioextrax,info@bioextrax.com,Info,Bioextrax,Press/Generic,2025-09-04 14:30:24,,109,,New,,False
+zcrm_886415000000511600,Info Luma Metall AB,Luma Metall AB,info@luma-metall.se,Info,Luma Metall AB,Press/Generic,2025-09-04 14:30:24,,110,,New,,False
+zcrm_886415000000511601,Info Collinder Märksystem AB,Collinder Märksystem AB,info@collinder.se,Info,Collinder Märksystem AB,Press/Generic,2025-09-04 14:30:24,,111,,New,,False
+zcrm_886415000000511602,Info Provide IT Sweden AB,Provide IT Sweden AB,info@provideit.se,Info,Provide IT Sweden AB,Press/Generic,2025-09-04 14:30:24,,112,,New,,False
+zcrm_886415000000511603,Info Oxyma Innovation AB,Oxyma Innovation AB,info@oxyma.se,Info,Oxyma Innovation AB,Press/Generic,2025-09-04 14:30:24,,113,,New,,False
+zcrm_886415000000511604,Info Plejd AB,Plejd AB,info@plejd.com,Info,Plejd AB,Press/Generic,2025-09-04 14:30:24,,114,,New,,False
+zcrm_886415000000511605,Info Hako Sweden AB,Hako Sweden AB,info@hako.se,Info,Hako Sweden AB,Press/Generic,2025-09-04 14:30:24,,115,,New,,False
+zcrm_886415000000511606,Info Element Materials Technology,Element Materials Technology,info@element.com,Info,Element Materials Technology,Press/Generic,2025-09-04 14:30:24,,116,,New,,False
+zcrm_886415000000511607,Info JKS Sverige AB (SIGI Europe),JKS Sverige AB (SIGI Europe),info@jksgroup.se,Info,JKS Sverige AB (SIGI Europe),Press/Generic,2025-09-04 14:30:24,,117,,New,,False
+zcrm_886415000000511608,Info NanoEcho AB,NanoEcho AB,info@nanoecho.se,Info,NanoEcho AB,Press/Generic,2025-09-04 14:30:24,,118,,New,,False
+zcrm_886415000000511609,Info Scandinavian Real Heart AB,Scandinavian Real Heart AB,info@realheart.se,Info,Scandinavian Real Heart AB,Press/Generic,2025-09-04 14:30:24,,119,,New,,False
+zcrm_886415000000511610,Info Qlosr Group AB,Qlosr Group AB,info@qlosr.se,Info,Qlosr Group AB,Press/Generic,2025-09-04 14:30:24,,120,,New,,False
+zcrm_886415000000511611,Info ZignSec AB,ZignSec AB,info@zignsec.com,Info,ZignSec AB,Press/Generic,2025-09-04 14:30:24,,121,,New,,False
+zcrm_886415000000511612,Info Swedish Logistic Property AB,Swedish Logistic Property AB,info@slproperty.se,Info,Swedish Logistic Property AB,Press/Generic,2025-09-04 14:30:24,,122,,New,,False
+zcrm_886415000000511613,Info Signifikant Svenska AB,Signifikant Svenska AB,info@signifikant.se,Info,Signifikant Svenska AB,Press/Generic,2025-09-04 14:30:24,,123,,New,,False
+zcrm_886415000000511614,Info Heja,Heja,info@heja.io,Info,Heja,Press/Generic,2025-09-04 14:30:24,,124,,New,,False
+zcrm_886415000000511615,Info Maria Åkerberg,Maria Åkerberg,info@mariaakerberg.com,Info,Maria Åkerberg,Press/Generic,2025-09-04 14:30:24,,125,,New,,False
+zcrm_886415000000511616,Info Verso Skincare,Verso Skincare,info@versoskincare.com,Info,Verso Skincare,Press/Generic,2025-09-04 14:30:24,,126,,New,,False
+zcrm_886415000000511617,Collaborations L:A Bruket,L:A Bruket,collaborations@labruket.com,Collaborations,L:A Bruket,Press/Generic,2025-09-04 14:30:24,,127,,New,,False
+zcrm_886415000000511618,Hello Colekt,Colekt,hello@colekt.com,Hello,Colekt,Press/Generic,2025-09-04 14:30:24,,128,,New,,False
+zcrm_886415000000511619,Collaboration Caia Cosmetics,Caia Cosmetics,collaboration@caiacosmetics.com,Collaboration,Caia Cosmetics,Press/Generic,2025-09-04 14:30:24,,129,,New,,False
+zcrm_886415000000511620,Hello Estrid,Estrid,hello@estrid.com,Hello,Estrid,Press/Generic,2025-09-04 14:30:24,,130,,New,,False
+zcrm_886415000000511621,Info Sweed Beauty,Sweed Beauty,info@sweedbeauty.com,Info,Sweed Beauty,Press/Generic,2025-09-04 14:30:24,,131,,New,,False
+zcrm_886415000000511622,Haircare Sachajuan,Sachajuan,haircare@sachajuan.com,Haircare,Sachajuan,Press/Generic,2025-09-04 14:30:24,,132,,New,,False
+zcrm_886415000000511623,Info BRUNS Products,BRUNS Products,info@brunsproducts.com,Info,BRUNS Products,Press/Generic,2025-09-04 14:30:24,,133,,New,,False
+zcrm_886415000000511624,Hola Ceremonia,Ceremonia,hola@ceremonia.com,Hola,Ceremonia,Press/Generic,2025-09-04 14:30:24,,134,,New,,False
+zcrm_886415000000511625,Info Svensk Hälsokost AB,Svensk Hälsokost AB,info@svenskhalsokost.se,Info,Svensk Hälsokost AB,Press/Generic,2025-09-04 14:30:24,,135,,New,,False
+zcrm_886415000000511626,Info Greatlife Group AB,Greatlife Group AB,info@greatlife.se,Info,Greatlife Group AB,Press/Generic,2025-09-04 14:30:24,,136,,New,,False
+zcrm_886415000000511627,Hej Glimja AB,Glimja AB,hej@glimja.se,Hej,Glimja AB,Press/Generic,2025-09-04 14:30:24,,137,,New,,False
+zcrm_886415000000511628,Hi Glimja AB,Glimja AB,hi@glimja.com,Hi,Glimja AB,Press/Generic,2025-09-04 14:30:24,,138,,New,,False
+zcrm_886415000000511629,Info Renée Voltaire AB,Renée Voltaire AB,info@reneevoltaire.se,Info,Renée Voltaire AB,Press/Generic,2025-09-04 14:30:24,,139,,New,,False
+zcrm_886415000000511630,Ekonomi Renée Voltaire AB,Renée Voltaire AB,ekonomi@reneevoltaire.se,Ekonomi,Renée Voltaire AB,Press/Generic,2025-09-04 14:30:24,,140,,New,,False
+zcrm_886415000000511631,Info Holistic Sweden AB,Holistic Sweden AB,info@holistic.se,Info,Holistic Sweden AB,Press/Generic,2025-09-04 14:30:24,,141,,New,,False
+zcrm_886415000000511632,Info Alpha Plus AB,Alpha Plus AB,info@alpha-plus.se,Info,Alpha Plus AB,Press/Generic,2025-09-04 14:30:24,,142,,New,,False
+zcrm_886415000000511633,Info Topformula,Topformula,info@topformula.se,Info,Topformula,Press/Generic,2025-09-04 14:30:24,,143,,New,,False
+zcrm_886415000000511634,Info Better You,Better You,info@betteryou.se,Info,Better You,Press/Generic,2025-09-04 14:30:24,,144,,New,,False
+zcrm_886415000000511635,Info Helhetshälsa,Helhetshälsa,info@helhetshalsa.se,Info,Helhetshälsa,Press/Generic,2025-09-04 14:30:24,,145,,New,,False
+zcrm_886415000000511636,Hello Oquist Cosmetics,Oquist Cosmetics,hello@oquistcosmetics.com,Hello,Oquist Cosmetics,Press/Generic,2025-09-04 14:30:24,,146,,New,,False
+zcrm_886415000000511637,Info Melyon,Melyon,info@melyon.se,Info,Melyon,Press/Generic,2025-09-04 14:30:24,,147,,New,,False
+zcrm_886415000000511638,Info Manasi 7,Manasi 7,info@manasi7.com,Info,Manasi 7,Press/Generic,2025-09-04 14:30:24,,148,,New,,False
+zcrm_886415000000511639,Info Obayaty,Obayaty,info@obayaty.com,Info,Obayaty,Press/Generic,2025-09-04 14:30:24,,149,,New,,False
+zcrm_886415000000511640,Info Mantle,Mantle,info@mantleskin.com,Info,Mantle,Press/Generic,2025-09-04 14:30:24,,150,,New,,False
+zcrm_886415000000511641,Info IDA WARG Beauty,IDA WARG Beauty,info@idawargbeauty.se,Info,IDA WARG Beauty,Press/Generic,2025-09-04 14:30:24,,151,,New,,False
+zcrm_886415000000511642,Contact Lernberger Stafsing,Lernberger Stafsing,contact@lernbergerstafsing.com,Contact,Lernberger Stafsing,Press/Generic,2025-09-04 14:30:24,,152,,New,,False
+zcrm_886415000000511643,Hello Gun Ana,Gun Ana,hello@gun-ana.com,Hello,Gun Ana,Press/Generic,2025-09-04 14:30:24,,153,,New,,False
+zcrm_886415000000511644,Info Recipe for Men,Recipe for Men,info@recipeformen.com,Info,Recipe for Men,Press/Generic,2025-09-04 14:30:24,,154,,New,,False
+zcrm_886415000000511645,Swedeninfo ACO,ACO,swedeninfo@perrigo.com,Swedeninfo,ACO,Press/Generic,2025-09-04 14:30:24,,155,,New,,False
+zcrm_886415000000511646,Info Oriflame,Oriflame,info@oriflame.com,Info,Oriflame,Press/Generic,2025-09-04 14:30:24,,156,,New,,False
+zcrm_886415000000511647,Info IDUN Minerals,IDUN Minerals,info@idunminerals.com,Info,IDUN Minerals,Press/Generic,2025-09-04 14:30:24,,157,,New,,False
+zcrm_886415000000511648,Info IsaDora,IsaDora,info@isadora.se,Info,IsaDora,Press/Generic,2025-09-04 14:30:24,,158,,New,,False
+zcrm_886415000000511649,Info Reference of Sweden (REF),Reference of Sweden (REF),info@refstockholm.com,Info,Reference of Sweden (REF),Press/Generic,2025-09-04 14:30:24,,159,,New,,False
+zcrm_886415000000511650,Info M Picaut Swedish Skincare,M Picaut Swedish Skincare,info@mettepicaut.se,Info,M Picaut Swedish Skincare,Press/Generic,2025-09-04 14:30:24,,160,,New,,False
+zcrm_886415000000511651,Info FACE Stockholm,FACE Stockholm,info@facestockholm.com,Info,FACE Stockholm,Press/Generic,2025-09-04 14:30:24,,161,,New,,False
+zcrm_886415000000511652,Kontakt Rosenserien,Rosenserien,kontakt@rosenserien.com,Kontakt,Rosenserien,Press/Generic,2025-09-04 14:30:24,,162,,New,,False
+zcrm_886415000000511653,Info Hickap,Hickap,info@hickap.com,Info,Hickap,Press/Generic,2025-09-04 14:30:24,,163,,New,,False
+zcrm_886415000000511654,Info Xlash,Xlash,info@xlash.com,Info,Xlash,Press/Generic,2025-09-04 14:30:24,,164,,New,,False
+zcrm_886415000000511655,Info Löwengrip,Löwengrip,info@lowengrip.com,Info,Löwengrip,Press/Generic,2025-09-04 14:30:24,,165,,New,,False
+zcrm_886415000000511656,Info DeoDoc,DeoDoc,info@deodoc.com,Info,DeoDoc,Press/Generic,2025-09-04 14:30:24,,166,,New,,False
+zcrm_886415000000511657,Info The Humble Co.,The Humble Co.,info@thehumble.co,Info,The Humble Co.,Press/Generic,2025-09-04 14:30:24,,167,,New,,False
+zcrm_886415000000511658,Info Ellen AB,Ellen AB,info@ellen.se,Info,Ellen AB,Press/Generic,2025-09-04 14:30:24,,168,,New,,False
+zcrm_886415000000511659,Info MonthlyCup,MonthlyCup,info@monthlycup.com,Info,MonthlyCup,Press/Generic,2025-09-04 14:30:24,,169,,New,,False
+zcrm_886415000000511660,Info Elexir Pharma,Elexir Pharma,info@elexirpharma.se,Info,Elexir Pharma,Press/Generic,2025-09-04 14:30:24,,170,,New,,False
+zcrm_886415000000511661,Ambassador Great Earth,Great Earth,ambassador@greatearth.se,Ambassador,Great Earth,Press/Generic,2025-09-04 14:30:24,,171,,New,,False
+zcrm_886415000000511662,Info Viterna,Viterna,info@viterna.se,Info,Viterna,Press/Generic,2025-09-04 14:30:24,,172,,New,,False
+zcrm_886415000000511663,Info Tyngre,Tyngre,info@tyngre.se,Info,Tyngre,Press/Generic,2025-09-04 14:30:24,,173,,New,,False
+zcrm_886415000000511664,Info Pändy (Pandy),Pändy (Pandy),info@pandy.se,Info,Pändy (Pandy),Press/Generic,2025-09-04 14:30:24,,174,,New,,False
+zcrm_886415000000511665,Info Clean Drink,Clean Drink,info@cleandrink.se,Info,Clean Drink,Press/Generic,2025-09-04 14:30:24,,175,,New,,False
+zcrm_886415000000511666,Info Casall,Casall,info@casall.se,Info,Casall,Press/Generic,2025-09-04 14:30:24,,176,,New,,False
+zcrm_886415000000511667,Info Röhnisch,Röhnisch,info@rohnisch.se,Info,Röhnisch,Press/Generic,2025-09-04 14:30:24,,177,,New,,False
+zcrm_886415000000511668,Info Eivy,Eivy,info@eivy.co,Info,Eivy,Press/Generic,2025-09-04 14:30:24,,178,,New,,False
+zcrm_886415000000511669,Info Klättermusen,Klättermusen,info@klattermusen.se,Info,Klättermusen,Press/Generic,2025-09-04 14:30:24,,179,,New,,False
+zcrm_886415000000511670,Info 8848 Altitude,8848 Altitude,info@8848altitude.com,Info,8848 Altitude,Press/Generic,2025-09-04 14:30:24,,180,,New,,False
+zcrm_886415000000511671,Info Tenson,Tenson,info@tenson.com,Info,Tenson,Press/Generic,2025-09-04 14:30:24,,181,,New,,False
+zcrm_886415000000511672,Info Eytys,Eytys,info@eytys.com,Info,Eytys,Press/Generic,2025-09-04 14:30:24,,182,,New,,False
+zcrm_886415000000511673,Info Stutterheim,Stutterheim,info@stutterheim.com,Info,Stutterheim,Press/Generic,2025-09-04 14:30:24,,183,,New,,False
+zcrm_886415000000511674,Info Kavat,Kavat,info@kavat.com,Info,Kavat,Press/Generic,2025-09-04 14:30:24,,184,,New,,False
+zcrm_886415000000511675,Info ATP Atelier,ATP Atelier,info@atpatelier.com,Info,ATP Atelier,Press/Generic,2025-09-04 14:30:24,,185,,New,,False
+zcrm_886415000000511676,Info Sandqvist,Sandqvist,info@sandqvist.com,Info,Sandqvist,Press/Generic,2025-09-04 14:30:24,1.0,186,,New,,False
+zcrm_886415000000511677,Hello Stiksen,Stiksen,hello@stiksen.com,Hello,Stiksen,Press/Generic,2025-09-04 14:30:24,1.0,187,,New,,False
+zcrm_886415000000511678,Info Garphyttan,Garphyttan,info@garphyttan.com,Info,Garphyttan,Press/Generic,2025-09-04 14:30:24,,188,,New,,False
+zcrm_886415000000511679,Info Gymleco,Gymleco,info@gymleco.se,Info,Gymleco,Press/Generic,2025-09-04 14:30:24,,189,,New,,False
+zcrm_886415000000511680,Info Exxentric,Exxentric,info@exxentric.com,Info,Exxentric,Press/Generic,2025-09-04 14:30:24,1.0,190,,New,,False
+zcrm_886415000000511681,Info Volumental,Volumental,info@volumental.com,Info,Volumental,Press/Generic,2025-09-04 14:30:24,,191,,New,,False
+zcrm_886415000000511682,Info Eleiko Group AB,Eleiko Group AB,info@eleiko.com,Info,Eleiko Group AB,Press/Generic,2025-09-04 14:30:24,1.0,192,,New,,False
+zcrm_886415000000511683,Info Icebug AB,Icebug AB,info@icebug.se,Info,Icebug AB,Press/Generic,2025-09-04 14:30:24,1.0,193,,New,,False
+zcrm_886415000000511684,Hello Flowlife AB,Flowlife AB,hello@flowlife.com,Hello,Flowlife AB,Press/Generic,2025-09-04 14:30:24,,194,,New,,False
+zcrm_886415000000511685,Info ProteinBolaget i Sverige AB,ProteinBolaget i Sverige AB,info@proteinbolaget.se,Info,ProteinBolaget i Sverige AB,Press/Generic,2025-09-04 14:30:24,,195,,New,,False
+zcrm_886415000000511686,Info Maurten AB,Maurten AB,info@maurten.com,Info,Maurten AB,Press/Generic,2025-09-04 14:30:24,1.0,196,,New,,False
+zcrm_886415000000515167,David2 Vikstrand,Vikstrand Deep Solutions,c0nspiracy0f0nee@gmail.com,David2,Vikstrand,,2025-09-06 17:32:11,,198,2025-09-06,,,False
+zcrm_886415000000528024,Webhook Test 20250913-130247,,webhooktest+20250913-130247@vdsai.se,,Webhook Test 20250913-130247,,2025-09-13 15:02:46,,209,,Intro Sent,,False
+zcrm_886415000000528029,Doe,,webhooktest+20250913-130431@vdsai.se,,Doe,,2025-09-13 15:04:30,,210,,Intro Sent,,False
+zcrm_886415000000530034,David Vikstrand,,d4798346@gmail.com,David,Vikstrand,,2025-09-15 14:19:23,,228,,,,False
+zcrm_886415000000531002,David Vikstrand,,info@vdsai.se,David,Vikstrand,,2025-09-15 10:02:29,,227,,,,False
+zcrm_886415000000531359,David Vikstrand,,david.vikstrand@gmail.com,David,Vikstrand,Personal,2025-09-16 10:42:06,1.0,233,,Booked,,False
+zcrm_886415000000531617,David Vikstrand,,ds.vikstrand@gmail.com,David,Vikstrand,,2025-09-17 10:17:32,,238,,booked,,False
+zcrm_886415000000531681,xxx Vikstrand,,david.vikstrand@dfghdfgh.com,xxx,Vikstrand,,2025-09-17 16:38:28,,239,,Intro Sent,,False
+zcrm_886415000000536447,Andre Vikstrand,,andrevikstrand@gmail.com,Andre,Vikstrand,,2025-09-17 18:17:24,,240,,Booked,,False
+csv_bd265734ca674966926086992417c6eb,,,xdavid.vikstrand@gmail.com,Xdavid,Xvikstrand,,,,,,booked,,False

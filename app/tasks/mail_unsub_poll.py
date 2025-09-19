@@ -1,164 +1,106 @@
 ﻿# app/tasks/mail_unsub_poll.py
 from __future__ import annotations
-from itertools import islice
 
-import imaplib, email, re, time, os
+import email
+import imaplib
+import os
+import re
+import time
 from email.header import decode_header, make_header
 from typing import Optional
 
-# Reuse your API client
-from ..api_client import (
-    search_contact_by_email,
-    update_contact_fields,
-    bigin_post,
-    list_records_by_contact_id,
-    bigin_put,
-)
+from ..api_client_csv import append_contact_note, find_contact_by_email, update_contact, get_contact_field
 from ..mail_utils import ensure_mailbox, message_body_text, move_message
 
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
-IMAP_USER = os.environ.get("ZOHO_IMAP_USER")  # e.g. info@yourdomain.com
-IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")  # app-specific password recommended
-IMAP_FOLDER = os.getenv("ZOHO_IMAP_FOLDER", "INBOX")  # or create/use 'Unsubscribe'
-MOVE_TO = os.getenv("ZOHO_IMAP_MOVE_TO", "Processed/Unsubscribe")  # auto-created if missing
+IMAP_USER = os.environ.get("ZOHO_IMAP_USER")
+IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")
+IMAP_FOLDER = os.getenv("ZOHO_IMAP_FOLDER", "INBOX")
+MOVE_TO = os.getenv("ZOHO_IMAP_MOVE_TO", "Processed/Unsubscribe")
 DRY_RUN = os.getenv("UNSUB_DRY_RUN", "false").lower() == "true"
 
-# Simple patterns: exact "stop", "unsubscribe", Swedish variants, etc.
-LINE_PATTERNS = [
-    r"^\s*stop\s*$",
-    r"^\s*unsubscribe\s*$",
-    r"^\s*avregistrera\s*$",
-    r"^\s*sluta\s*$",
-    r"^\s*sluta skicka\s*$",
-]
-SUBJECT_HINT = r"\b(stop|unsubscribe|avregistrera|sluta)\b"
+STOP_KEYWORDS = {"stop", "unsubscribe", "avregistrera", "sluta", "sluta skicka"}
+SUBJECT_HINT = re.compile(r"\b(stop|unsubscribe|avregistrera|sluta)\b", re.I)
 
 
 def _addr_from(msg: email.message.Message) -> Optional[str]:
+    """Return the sender email (lowercased) extracted from the header."""
     from_hdr = str(make_header(decode_header(msg.get("From", ""))))
-    m = re.search(r"<([^>]+)>", from_hdr)
-    return (m.group(1) if m else from_hdr).strip().lower() or None
+    match = re.search(r"<([^>]+)>", from_hdr)
+    addr = (match.group(1) if match else from_hdr).strip().lower()
+    return addr or None
 
 
-def _matches_stop(msg: email.message.Message, body: str) -> bool:
-    # quick subject hint
-    subj = str(make_header(decode_header(msg.get("Subject", "")))).lower()
-    if re.search(SUBJECT_HINT, subj):
+def _looks_like_stop(msg: email.message.Message, body: str) -> bool:
+    """Heuristic check for STOP/UNSUBSCRIBE intent in subject or body."""
+    subject = str(make_header(decode_header(msg.get("Subject", "")))).lower()
+    if SUBJECT_HINT.search(subject):
         return True
-    # scan lines (trim quotes)
-    for raw in body.splitlines():
-        line = raw.strip().lower()
-        # ignore quoted history
-        if line.startswith(">"):
+
+    for raw_line in body.splitlines():
+        line = raw_line.strip().lower()
+        if not line or line.startswith(">"):
             continue
-        if any(re.match(p, line) for p in LINE_PATTERNS):
+        if line in STOP_KEYWORDS:
             return True
     return False
 
 
-def _note(contact_id: str, content: str) -> None:
+def process_once(verbose: bool = False) -> None:
+    """Scan for STOP mails and mark matching contacts as unsubscribed."""
+    if not IMAP_USER or not IMAP_PASS:
+        raise RuntimeError("Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment")
+
+    imap = imaplib.IMAP4_SSL(IMAP_HOST)
     try:
-        bigin_post(f"Contacts/{contact_id}/Notes", {"data": [{"Note_Content": content}]})
-    except Exception:
-        pass  # non-fatal
-
-
-def _chunks(seq, n: int = 100):
-    it = iter(seq)
-    while True:
-        batch = list(islice(it, n))
-        if not batch:
-            break
-        yield batch
-
-
-def process_once(verbose: bool = True) -> None:
-    assert IMAP_USER and IMAP_PASS, "Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment"
-    logged_in_tries = 10
-    imap: Optional[imaplib.IMAP4_SSL] = None
-
-    while logged_in_tries > 0:
-        try:
-            imap = imaplib.IMAP4_SSL(IMAP_HOST)
-            imap.login(IMAP_USER, IMAP_PASS)
-            imap.select(IMAP_FOLDER)
+        imap.login(IMAP_USER, IMAP_PASS)
+        imap.select(IMAP_FOLDER)
+        if MOVE_TO:
             ensure_mailbox(imap, MOVE_TO)
-            break
-        except Exception as e:
-            if verbose:
-                print(f"Login failed: {e}")
-            time.sleep(3)
-            logged_in_tries -= 1
 
-    if not imap:
-        return
-
-    try:
         typ, data = imap.uid("SEARCH", None, "(UNSEEN)")
-        uids = (data[0].decode().split() if typ == "OK" and data and data[0] else [])
-        handled = 0
+        uids = data and data[0].decode().split() if typ == "OK" and data else []
+        if verbose:
+            print(f"[imap] {len(uids)} unseen messages in {IMAP_FOLDER}")
 
+        handled = 0
         for uid in uids:
             typ, fetch = imap.uid("FETCH", uid, "(RFC822)")
             if typ != "OK" or not fetch or not fetch[0]:
                 continue
 
-            raw = fetch[0][1]
-            msg = email.message_from_bytes(raw)
+            msg = email.message_from_bytes(fetch[0][1])
             sender = _addr_from(msg)
             body = message_body_text(msg)
-
-            if not sender:
+            if not sender or not _looks_like_stop(msg, body):
                 continue
 
-            if not _matches_stop(msg, body):
-                continue  # not a STOP mail; leave it
-
             if verbose:
-                print(f"[STOP] from {sender} (uid {uid})")
-
-            if not DRY_RUN:
-                contact = search_contact_by_email(sender)
-                if contact and contact.get("id"):
-                    update_contact_fields(contact["id"], {"Email_Opt_Out": True})
-
-                    records = list_records_by_contact_id(contact["id"], fields=["id", "Stage"])
-
-                    def _norm(value: Optional[str]) -> str:
-                        return (value or "").strip().lower()
-
-                    to_drop = [
-                        {"id": r["id"], "Stage": "Dropped"}
-                        for r in records
-                        if r.get("id") and _norm(r.get("Stage")) not in {"booked", "dropped"}
-                    ]
-
-                    if to_drop:
-                        successes, failures = 0, []
-                        for batch in _chunks(to_drop, 100):
-                            try:
-                                resp = bigin_put("Pipelines", {"data": batch, "trigger": []})
-                                for item in resp.get("data", []):
-                                    if item.get("status") == "success":
-                                        successes += 1
-                                    else:
-                                        failures.append(
-                                            {
-                                                "id": item.get("details", {}).get("id"),
-                                                "error": item.get("message"),
-                                            }
-                                        )
-                            except Exception as exc:
-                                failures.extend([{"id": row["id"], "error": str(exc)} for row in batch])
-
-                    _note(
-                        contact["id"],
-                        f"Unsubscribed via email STOP from {sender} at {time.strftime('%Y-%m-%d %H:%M:%S')}",
-                    )
-
-                move_message(imap, uid, MOVE_TO)
+                print(f"[STOP] {sender}")
 
             handled += 1
+            if DRY_RUN:
+                continue
+
+            contact = find_contact_by_email(sender)
+            if not contact or not contact.get("id"):
+                if verbose:
+                    print(f"[warn] no contact for {sender}")
+                continue
+
+            cid = contact["id"]
+            update_contact(cid, {"unsub": True})
+            if get_contact_field(cid, "stage") != "booked":
+                update_contact(cid, {"stage": "dropped"})
+            
+            note = (
+                f"Unsubscribed via email STOP from {sender} at "
+                f"{time.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            append_contact_note(cid, note)
+
+            if MOVE_TO:
+                move_message(imap, uid, MOVE_TO)
 
         if verbose:
             print(f"Handled {handled} STOP email(s).")
@@ -175,4 +117,5 @@ def process_once(verbose: bool = True) -> None:
 
 
 if __name__ == "__main__":
-    process_once()
+    process_once(verbose=True)
+
