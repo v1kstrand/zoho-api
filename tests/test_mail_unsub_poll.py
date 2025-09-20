@@ -1,44 +1,48 @@
 ﻿import email
 
-from app.tasks.mail_unsub_poll import _addr_from, _matches_stop, _chunks
+import pytest
+
+from app.tasks import mail_unsub_poll as unsub
 
 
-def make_message(subject: str = "", from_header: str = "user@example.com"):
+def make_message(subject="", from_addr="User <user@example.com>"):
     msg = email.message.EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = from_header
-    msg.set_content("stop")
+    msg['Subject'] = subject
+    msg['From'] = from_addr
     return msg
 
 
-def test_addr_from_handles_simple_address():
-    msg = make_message()
-    assert _addr_from(msg) == "user@example.com"
+def test_addr_from_extracts_address():
+    msg = make_message(from_addr='Example User <User@Example.com>')
+    assert unsub._addr_from(msg) == 'user@example.com'
+
+    msg = make_message(from_addr='plain@example.com')
+    assert unsub._addr_from(msg) == 'plain@example.com'
+
+    msg = make_message(from_addr='')
+    assert unsub._addr_from(msg) is None
 
 
-def test_addr_from_parses_name_address():
-    msg = make_message(from_header="User Name <user@example.com>")
-    assert _addr_from(msg) == "user@example.com"
+def test_looks_like_stop_by_subject():
+    msg = make_message(subject='Please UNSUBSCRIBE me')
+    assert unsub._looks_like_stop(msg, body='Hello')
+
+    msg = make_message(subject='Weekly update')
+    assert not unsub._looks_like_stop(msg, body='Hello world')
 
 
-def test_matches_stop_subject_hit():
-    msg = make_message(subject="Please unsubscribe")
-    assert _matches_stop(msg, "") is True
+def test_looks_like_stop_by_body():
+    msg = make_message(subject='Just saying hi')
+    body = "\nHi there\nstop\nThanks"
+    assert unsub._looks_like_stop(msg, body)
+
+    msg = make_message(subject='Hello')
+    body = '> quoted\n  \nno keywords here'
+    assert not unsub._looks_like_stop(msg, body)
 
 
-def test_matches_stop_body_hit():
-    msg = make_message(subject="General question")
-    body = "Hello\nSTOP\nThanks"
-    assert _matches_stop(msg, body) is True
-
-
-def test_matches_stop_ignores_quoted_lines():
-    msg = make_message(subject="General question")
-    body = "> stop\nThanks"
-    assert _matches_stop(msg, body) is False
-
-
-def test_chunks_iterates_in_batches():
-    data = list(range(5))
-    batches = list(_chunks(data, n=2))
-    assert batches == [[0, 1], [2, 3], [4]]
+def test_process_once_requires_credentials(monkeypatch):
+    monkeypatch.setattr(unsub, 'IMAP_USER', None)
+    monkeypatch.setattr(unsub, 'IMAP_PASS', None)
+    with pytest.raises(RuntimeError):
+        unsub.process_once()

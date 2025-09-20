@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from ..api_client_csv import find_contact_by_email, upsert_contact, update_contact, get_contact_field
+from ..api_client_csv import add_contact, find_contact_by_email, update_contact, get_contact_field
 from ..parse_mail import parse_mail
 from ..mail_utils import ensure_mailbox, message_body_text, move_message
 
@@ -78,37 +78,27 @@ def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not email_addr:
         return None
 
+    email_norm = email_addr.lower()
+    existing = find_contact_by_email(email_norm)
+    if existing:
+        return existing
+
     payload: Dict[str, Any] = {
-        "email": email_addr,
+        "email": email_norm,
         "first_name": (appt.get("customer_first_name") or "").strip() or None,
         "last_name": (appt.get("customer_last_name") or "").strip() or None,
-        #"phone": (appt.get("customer_phone") or "").strip() or None,
     }
-    try:
-        return upsert_contact({k: v for k, v in payload.items() if v is not None})
-    except Exception as exc:
-        print(f"[error] failed to upsert contact for {email_addr}: {exc}")
-        return None
-
-
-def _is_already_booked(appt: Dict[str, Any]) -> bool:
-    email_addr = (appt.get("customer_email") or "").strip()
-    if not email_addr:
-        return False
-    contact = find_contact_by_email(email_addr)
-    if not contact:
-        return False
-    return (contact.get("stage") or "").strip().lower() == "booked"
+    return add_contact({k: v for k, v in payload.items() if v is not None})
 
 
 def _mark_contact_booked(contact: Dict[str, Any]) -> None:
-    contact_id = contact.get("id")
-    if not contact_id:
+    email = contact.get("email")
+    if not email:
         return
     try:
-        update_contact(contact_id, {"stage": "Booked"})
+        update_contact(email, {"stage": "Booked"})
     except Exception as exc:
-        print(f"[warn] failed to set stage=Booked for {contact_id}: {exc}")
+        print(f"[warn] failed to set stage=Booked for {email}: {exc}")
 
 
 def _subject(msg: email.message.Message) -> str:
@@ -160,8 +150,10 @@ def process_bookings_once(verbose: bool = True) -> int:
                 appt = parse_mail(body)
                 if verbose:
                     print("[info] appointment parsed")
-
-                if _is_already_booked(appt):
+                    
+                contact = _ensure_contact(appt)
+                stage_value = get_contact_field(contact.get("email", ""), field="stage") if contact else ""
+                if stage_value.strip().lower() == "booked":
                     processed = True
                     if verbose:
                         who = appt.get("customer_email") or appt.get("customer_name")
@@ -173,13 +165,13 @@ def process_bookings_once(verbose: bool = True) -> int:
                         print("[warn] booking mail missing customer email; skipping")
                     continue
 
-                contact = _ensure_contact(appt)
+                
                 if contact:
                     _mark_contact_booked(contact)
                     handled += 1
                     processed = True
                     if verbose:
-                        who = contact.get("Email") or contact.get("Contact Id")
+                        who = contact.get("email")
                         print(f"[ok] updated booking stage for {who}")
                 else:
                     if verbose:

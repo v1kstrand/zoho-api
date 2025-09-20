@@ -83,21 +83,21 @@ def process_once(verbose: bool = False) -> None:
                 continue
 
             contact = find_contact_by_email(sender)
-            if not contact or not contact.get("id"):
+            if not contact:
                 if verbose:
                     print(f"[warn] no contact for {sender}")
                 continue
 
-            cid = contact["id"]
-            update_contact(cid, {"unsub": True})
-            if get_contact_field(cid, "stage") != "booked":
-                update_contact(cid, {"stage": "dropped"})
-            
+            update_contact(sender, {"unsub": "True"})
+            stage_value = get_contact_field(sender, "stage").strip().lower()
+            if stage_value not in {"booked", "dropped"}:
+                update_contact(sender, {"stage": "dropped"})
+
             note = (
                 f"Unsubscribed via email STOP from {sender} at "
                 f"{time.strftime('%Y-%m-%d %H:%M:%S')}"
             )
-            append_contact_note(cid, note)
+            append_contact_note(sender, note)
 
             if MOVE_TO:
                 move_message(imap, uid, MOVE_TO)

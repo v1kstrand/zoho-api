@@ -106,3 +106,33 @@ def test_parse_mail_with_email_fallback_builds_readable_name():
     assert result["customer_first_name"] == "John"
     assert result["customer_last_name"] == "Doe"
     assert result["customer_email"] == "john.doe@example.com"
+
+def test_parse_mail_sms_number_and_phone_fallback():
+    body = textwrap.dedent(
+        """
+        What:
+        Discovery call between David Vikstrand and Jane Roe
+
+        Invitee Time Zone:
+        Europe/Stockholm
+
+        Who:
+        David Vikstrand - Organizer
+        info@vdsai.se
+        +46 701 234 567
+
+        Where:
+        https://example.com
+
+        Company:
+        Example Co
+
+        Phone number (Text notifications):
+        +46 70 765 43 21
+        """
+    )
+
+    result = parse_mail(body)
+
+    assert result["customer_phone"] == "+46701234567"
+    assert result["sms_opt_phone"] == "+46707654321"

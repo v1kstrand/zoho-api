@@ -1,3 +1,0 @@
-date_utc,tag,recipient,status,smtp_code,smtp_message,message_id,first_seen,last_seen
-2025-09-19,outreach_sep19,someone@example.com,failed_permanent,498,"No MX for example.com, domain accepts no mail",20250919105430.1b8aed87b28cba94@for.vdsai.se,1758279270.997137,1758279270.997137
-2025-09-19,outreach_sep19,david.vikstrand@gmail.com,delivered,250,OK,20250919122720.b7e6f678c23b2e28@for.vdsai.se,1758279292.1682713,1758284841.000291
