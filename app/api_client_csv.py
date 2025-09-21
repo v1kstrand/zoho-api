@@ -4,13 +4,15 @@ import os
 import uuid
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
+from dotenv import load_dotenv
+load_dotenv()
 
 import pandas as pd
 
 JSON = Dict[str, Any]
 
 BASE_DIR = Path.cwd()
-CSV_PATH = Path(os.environ.get("CONTACTS_CSV_PATH") or (BASE_DIR / "data" / "contacts" / "contacts.csv"))
+CSV_PATH = Path(os.environ.get("CONTACTS_CSV_PATH"))
 
 COLUMNS: List[str] = [
     "id",
@@ -33,6 +35,7 @@ COLUMNS: List[str] = [
 ]
 EMAIL_COLUMN = "email"
 NOTES_COLUMN = "notes"
+CASE_INS = True
 
 
 class ContactStore:
@@ -101,6 +104,9 @@ class ContactStore:
     def _normalize_email(value: str) -> str:
         """Lowercase and trim an email value for comparison."""
         return (value or "").strip().lower()
+    
+    def _get_now(self):
+        return pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _row_index_by_email(self, email: str) -> Optional[int]:
         """Return the index of the row matching the given email if present."""
@@ -174,11 +180,9 @@ class ContactStore:
             raise ValueError("Email is required to add a contact")
         payload[EMAIL_COLUMN] = email_value
 
-        if not payload.get("id"):
-            payload["id"] = uuid.uuid4().hex
-
-        if not payload.get("auto_number"):
-            payload["auto_number"] = self._next_auto_number()
+        payload["id"] = uuid.uuid4().hex
+        payload["auto_number"] = self._next_auto_number()
+        payload["created_time"] = self._get_now()
 
         idx = self._row_index_by_email(email_value)
         if idx is not None:
@@ -208,16 +212,6 @@ class ContactStore:
         df = self._ensure_loaded()
         return self._row_dict(df.loc[idx])
 
-    def get_contact_field(self, email: str, field: str) -> str:
-        """Return a single column value for the given email ("" when unknown)."""
-        if field not in COLUMNS:
-            raise KeyError(f"Unknown column {field!r}; expected one of {COLUMNS}")
-        idx = self._row_index_by_email(email)
-        if idx is None:
-            return ""
-        df = self._ensure_loaded()
-        return self._coerce(df.at[idx, field])
-
     def filter_contacts(self, criteria: Dict[str, Any]) -> List[JSON]:
         """Return rows whose columns match the given criteria dict."""
         if not isinstance(criteria, dict):
@@ -229,7 +223,14 @@ class ContactStore:
         for column, value in criteria.items():
             if column not in COLUMNS:
                 raise KeyError(f"Unknown column {column!r}; expected one of {COLUMNS}")
-            mask &= df[column].astype(str) == self._coerce(value)
+            series = df[column].astype(str)
+            target = self._coerce(value)
+
+            if CASE_INS:
+                series = series.str.casefold()
+                target = target.casefold()
+
+            mask &= series == target
         subset = df[mask]
         return [self._row_dict(row) for _, row in subset.iterrows()]
 
@@ -245,7 +246,7 @@ class ContactStore:
 
         df = self._ensure_loaded()
         existing = self._coerce(df.at[idx, NOTES_COLUMN])
-        df.at[idx, NOTES_COLUMN] = f"{existing}\n{note}".strip() if existing else note
+        df.at[idx, NOTES_COLUMN] = f"{existing};{note}".strip() if existing else note
         self._save()
         return self._row_dict(df.loc[idx])
 
@@ -272,8 +273,10 @@ def update_contact(email: str, fields: JSON) -> JSON:
 
 def get_contact_field(email: str, field: str) -> str:
     """Return a single column value for the given email."""
-    return _store.get_contact_field(email, field)
-
+    contact = _store.find_contact_by_email(email)
+    assert contact is not None, f"Contact with email={email} not found"
+    assert field in contact, f"Unknown field: {field}"
+    return contact[field]
 
 def filter_contacts(criteria: Dict[str, Any]) -> List[JSON]:
     """Return rows whose columns match the given criteria dict."""

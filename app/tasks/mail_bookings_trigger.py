@@ -1,11 +1,9 @@
-﻿# app/tasks/mail_bookings_trigger.py
+# app/tasks/mail_bookings_trigger.py
 from __future__ import annotations
 
 import email
-import imaplib
 import os
 import re
-import time
 from email.header import decode_header, make_header
 from typing import Any, Dict, Optional
 
@@ -14,9 +12,8 @@ load_dotenv()
 
 from ..api_client_csv import add_contact, find_contact_by_email, update_contact, get_contact_field
 from ..parse_mail import parse_mail
-from ..mail_utils import ensure_mailbox, message_body_text, move_message
+from ..mail_utils import imap_connect_with_retry, message_body_text, move_message
 
-load_dotenv()
 
 # ---------------------------------------------------------------------
 # Config / Environment
@@ -24,9 +21,11 @@ load_dotenv()
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
 IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
-
-BOOKING_FOLDER = os.getenv("BOOKING_FOLDER", "INBOX")
-MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO", None)
+BOOKING_FOLDER = os.getenv("ZOHO_IMAP_FOLDER")
+MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO")
+DRY_RUN = os.getenv("BOOKING_DRY_RUN").lower() == "true"
+if DRY_RUN:
+    print("Dry run enabled")
 
 BOOKING_SUBJECT_HINT = re.compile(
     r"""^(?:\s*(?:re|fwd)\s*:\s*)*              # optional Re:/Fwd:
@@ -40,38 +39,6 @@ BOOKING_SUBJECT_HINT = re.compile(
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
-
-def _imap_connect_with_retry(
-    host: str,
-    user: str,
-    password: str,
-    select_folder: str,
-    *,
-    ensure_folder: Optional[str] = None,
-    attempts: int = 3,
-    delay: float = 2.0,
-    verbose: bool = True,
-) -> imaplib.IMAP4_SSL:
-    last: Optional[BaseException] = None
-    for i in range(attempts):
-        try:
-            imap = imaplib.IMAP4_SSL(host)
-            imap.login(user, password)
-            if ensure_folder:
-                ensure_mailbox(imap, ensure_folder)
-            typ, _ = imap.select(select_folder)
-            if typ != "OK":
-                ensure_mailbox(imap, select_folder)
-                imap.select(select_folder)
-            return imap
-        except BaseException as e:
-            last = e
-            if verbose:
-                print(f"[imap] connect attempt {i+1}/{attempts} failed: {e}")
-            time.sleep(delay)
-    assert last is not None
-    raise last
-
 
 def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     email_addr = (appt.get("customer_email") or "").strip()
@@ -90,17 +57,6 @@ def _ensure_contact(appt: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
     return add_contact({k: v for k, v in payload.items() if v is not None})
 
-
-def _mark_contact_booked(contact: Dict[str, Any]) -> None:
-    email = contact.get("email")
-    if not email:
-        return
-    try:
-        update_contact(email, {"stage": "Booked"})
-    except Exception as exc:
-        print(f"[warn] failed to set stage=Booked for {email}: {exc}")
-
-
 def _subject(msg: email.message.Message) -> str:
     return str(make_header(decode_header(msg.get("Subject", ""))))
 
@@ -116,7 +72,7 @@ def process_bookings_once(verbose: bool = True) -> int:
     """Scan for booking mails and ensure corresponding contacts exist."""
     assert IMAP_USER and IMAP_PASS, "Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment"
 
-    imap = _imap_connect_with_retry(
+    imap = imap_connect_with_retry(
         IMAP_HOST,
         IMAP_USER,
         IMAP_PASS,
@@ -141,8 +97,6 @@ def process_bookings_once(verbose: bool = True) -> int:
 
                 msg = email.message_from_bytes(fetch[0][1])
                 subj = _subject(msg)
-                if verbose:
-                    print(subj)
                 if not _looks_like_booking(subj):
                     continue
 
@@ -165,13 +119,15 @@ def process_bookings_once(verbose: bool = True) -> int:
                         print("[warn] booking mail missing customer email; skipping")
                     continue
 
+                if DRY_RUN:
+                    continue
                 
                 if contact:
-                    _mark_contact_booked(contact)
+                    who = contact.get("email")
+                    update_contact(who, {"stage": "Booked"})
                     handled += 1
                     processed = True
                     if verbose:
-                        who = contact.get("email")
                         print(f"[ok] updated booking stage for {who}")
                 else:
                     if verbose:

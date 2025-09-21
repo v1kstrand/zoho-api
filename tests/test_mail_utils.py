@@ -1,19 +1,25 @@
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import csv
 import email
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Iterator
 
 import pytest
 
 import app.mail_utils as mail_utils
-from app.mail_utils import (
+import app.mailgun_util as mailgun_util
+from app.mail_utils import message_body_text, move_message
+from app.mailgun_util import (
     MailgunEventsClient,
     MailgunPerRecipient,
     append_stats_row,
     compute_day_stats,
-    message_body_text,
-    move_message,
 )
 
 
@@ -174,7 +180,7 @@ def test_mailgun_events_client_unauthorized(monkeypatch):
         captured["request"] = {"url": url, "auth": auth, "params": params, "timeout": timeout}
         return DummyResponse(401)
 
-    monkeypatch.setattr(mail_utils.requests, "get", fake_get)
+    monkeypatch.setattr(mailgun_util.requests, "get", fake_get)
 
     client = MailgunEventsClient(
         api_base="https://api.mailgun.net",
@@ -198,7 +204,7 @@ def test_mailgun_events_client_fetch_success(monkeypatch):
         captured["timeout"] = timeout
         return DummyResponse(200, {"items": [{"id": 1}]})
 
-    monkeypatch.setattr(mail_utils.requests, "get", fake_get)
+    monkeypatch.setattr(mailgun_util.requests, "get", fake_get)
 
     client = MailgunEventsClient(
         api_base="https://api.mailgun.net",

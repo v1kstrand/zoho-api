@@ -1,9 +1,10 @@
-﻿import email
+import email
 from email.header import Header
 
 import pytest
 
 from app.tasks import mail_bookings_trigger as bookings
+import app.mail_utils as mail_utils
 
 
 def test_subject_decodes_header():
@@ -94,10 +95,10 @@ def test_imap_connect_with_retry_success(monkeypatch):
     DummyIMAP.fail_login_attempts = 1
     created = []
 
-    monkeypatch.setattr(bookings.imaplib, 'IMAP4_SSL', DummyIMAP)
-    monkeypatch.setattr(bookings, 'ensure_mailbox', lambda imap, folder: created.append((imap, folder)))
+    monkeypatch.setattr(mail_utils.imaplib, 'IMAP4_SSL', DummyIMAP)
+    monkeypatch.setattr(mail_utils, 'ensure_mailbox', lambda imap, folder: created.append((imap, folder)))
 
-    imap = bookings._imap_connect_with_retry('imap.test', 'user', 'pass', 'INBOX', ensure_folder='Archive', attempts=3, delay=0)
+    imap = mail_utils.imap_connect_with_retry('imap.test', 'user', 'pass', 'INBOX', ensure_folder='Archive', attempts=3, delay=0)
 
     assert isinstance(imap, DummyIMAP)
     assert imap.selected == ['INBOX']
@@ -109,7 +110,7 @@ def test_imap_connect_with_retry_exhausts_attempts(monkeypatch):
         def login(self, user, password):
             raise RuntimeError('permanent failure')
 
-    monkeypatch.setattr(bookings.imaplib, 'IMAP4_SSL', FailingIMAP)
+    monkeypatch.setattr(mail_utils.imaplib, 'IMAP4_SSL', FailingIMAP)
 
     with pytest.raises(RuntimeError):
-        bookings._imap_connect_with_retry('imap.test', 'user', 'pass', 'INBOX', attempts=2, delay=0)
+        mail_utils.imap_connect_with_retry('imap.test', 'user', 'pass', 'INBOX', attempts=2, delay=0)

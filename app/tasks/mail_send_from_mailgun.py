@@ -1,0 +1,157 @@
+﻿# app/tasks/mail_send_from_mailgun_with_details.py
+from __future__ import annotations
+
+import argparse
+from dataclasses import dataclass
+from typing import Iterable
+
+from dotenv import load_dotenv
+
+from ..api_client_csv import find_contact_by_email
+from ..mailgun_util import send_mailgun_message
+
+load_dotenv()
+
+__all__ = [
+    "StageConfig",
+    "STAGE_CONFIGS",
+    "build_argument_parser",
+    "main",
+    "resolve_stage",
+    "send_campaign",
+]
+
+
+@dataclass(frozen=True)
+class StageConfig:
+    template: str
+    column_map: dict[str, str]
+    static_params: dict[str, str]
+
+
+STAGE_CONFIGS: dict[str, StageConfig] = {
+    "intro": StageConfig(
+        template="v2",
+        column_map={"first_name": "first_name", "auto_number": "auto_number"},
+        static_params={},
+    ),
+}
+
+
+def _build_template_params(
+    contact: dict[str, str] | None,
+    *,
+    column_map: dict[str, str],
+    static_params: dict[str, str],
+    email: str,
+) -> dict[str, str]:
+    if contact is None:
+        raise ValueError(f"Contact not found for {email}")
+
+    params: dict[str, str] = dict(static_params)
+    for template_key, column_name in column_map.items():
+        if column_name not in contact:
+            raise ValueError(
+                f"Contact column '{column_name}' required for template variable '{template_key}'"
+            )
+        params[template_key] = contact.get(column_name, "")
+    return params
+
+
+def resolve_stage(stage: str) -> StageConfig:
+    try:
+        return STAGE_CONFIGS[stage]
+    except KeyError as exc:
+        available = ", ".join(sorted(STAGE_CONFIGS)) or "<none>"
+        raise ValueError(f"Unknown stage '{stage}'. Available stages: {available}") from exc
+
+
+def send_campaign(
+    *,
+    stage: str,
+    emails: list[str],
+    config: StageConfig,
+    dry_run: bool = False,
+    contact_lookup=find_contact_by_email,
+    send_message=send_mailgun_message,
+) -> None:
+    mailgun_errors: list[str] = []
+    delivered_to = 0
+
+    for email in emails:
+        contact = contact_lookup(email)
+        try:
+            params = _build_template_params(
+                contact,
+                column_map=config.column_map,
+                static_params=config.static_params,
+                email=email,
+            )
+        except ValueError as exc:
+            print(f"[skip] {exc}")
+            mailgun_errors.append(str(exc))
+            continue
+
+        if dry_run:
+            print(
+                f"[dry-run] stage '{stage}' would send template '{config.template}' "
+                f"to {email} with params {params}"
+            )
+            delivered_to += 1
+            continue
+
+        try:
+            send_message([email], (config.template, params))
+            delivered_to += 1
+            print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
+        except Exception as exc:  # pragma: no cover - best effort logging only
+            print(f"[error] failed to send to {email}: {exc}")
+            mailgun_errors.append(f"{email}: {exc}")
+
+    if not dry_run and delivered_to == 0:
+        print("[info] no messages sent")
+
+    if mailgun_errors:
+        print("[warn] one or more deliveries encountered issues:")
+        for msg in mailgun_errors:
+            print(f"    - {msg}")
+
+
+def build_argument_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Send a staged Mailgun template to contacts."
+    )
+    parser.add_argument(
+        "stage",
+        choices=sorted(STAGE_CONFIGS.keys()),
+        help="Stage name that determines template and merge parameters.",
+    )
+    parser.add_argument(
+        "emails",
+        nargs="+",
+        help="Email addresses that must exist in the contacts CSV.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Do not call Mailgun; only print what would happen.",
+    )
+    return parser
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    parser = build_argument_parser()
+    args = parser.parse_args(argv)
+
+    config = resolve_stage(args.stage)
+    send_campaign(
+        stage=args.stage,
+        emails=args.emails,
+        config=config,
+        dry_run=args.dry_run,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    main()

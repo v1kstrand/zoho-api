@@ -1,25 +1,31 @@
-﻿# app/tasks/mail_unsub_poll.py
+# app/tasks/mail_unsub_poll.py
 from __future__ import annotations
 
 import email
-import imaplib
 import os
 import re
 import time
 from email.header import decode_header, make_header
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from ..api_client_csv import append_contact_note, find_contact_by_email, update_contact, get_contact_field
-from ..mail_utils import ensure_mailbox, message_body_text, move_message
+from ..mail_utils import imap_connect_with_retry, message_body_text, move_message
 
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
 IMAP_USER = os.environ.get("ZOHO_IMAP_USER")
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")
-IMAP_FOLDER = os.getenv("ZOHO_IMAP_FOLDER", "INBOX")
-MOVE_TO = os.getenv("ZOHO_IMAP_MOVE_TO", "Processed/Unsubscribe")
-DRY_RUN = os.getenv("UNSUB_DRY_RUN", "false").lower() == "true"
+IMAP_FOLDER = os.getenv("ZOHO_IMAP_FOLDER")
+MOVE_TO = os.getenv("UNSUB_IMAP_MOVE_TO")
+DRY_RUN = os.getenv("UNSUB_DRY_RUN").lower() == "true"
+if DRY_RUN:
+    print("Dry run enabled")
 
-STOP_KEYWORDS = {"stop", "unsubscribe", "avregistrera", "sluta", "sluta skicka"}
+STOP_KEYWORDS = os.getenv("UNSUB_STOP_KEYWORDS")
+if STOP_KEYWORDS:
+    STOP_KEYWORDS = {word.strip().lower() for word in STOP_KEYWORDS.split(",") if word.strip()}
 SUBJECT_HINT = re.compile(r"\b(stop|unsubscribe|avregistrera|sluta)\b", re.I)
 
 
@@ -51,13 +57,16 @@ def process_once(verbose: bool = False) -> None:
     if not IMAP_USER or not IMAP_PASS:
         raise RuntimeError("Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment")
 
-    imap = imaplib.IMAP4_SSL(IMAP_HOST)
-    try:
-        imap.login(IMAP_USER, IMAP_PASS)
-        imap.select(IMAP_FOLDER)
-        if MOVE_TO:
-            ensure_mailbox(imap, MOVE_TO)
+    imap = imap_connect_with_retry(
+        IMAP_HOST,
+        IMAP_USER,
+        IMAP_PASS,
+        IMAP_FOLDER,
+        ensure_folder=MOVE_TO,
+        verbose=verbose,
+    )
 
+    try:
         typ, data = imap.uid("SEARCH", None, "(UNSEEN)")
         uids = data and data[0].decode().split() if typ == "OK" and data else []
         if verbose:
@@ -104,7 +113,6 @@ def process_once(verbose: bool = False) -> None:
 
         if verbose:
             print(f"Handled {handled} STOP email(s).")
-
     finally:
         try:
             imap.close()
