@@ -13,15 +13,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BREVO_API_KEY = os.environ["BREVO_API_KEY"]
-BREVO_TEMPLATE_ID = int(os.environ["BREVO_TEMPLATE_ID"]) if "BREVO_TEMPLATE_ID" in os.environ else 2
 MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
-MAILGUN_DOMAIN = os.environ["MAILGUN_DOMAIN"] if "MAILGUN_DOMAIN" in os.environ else "for.vdsai.se"
-MAILGUN_TEMPLATE = os.environ["MAILGUN_TEMPLATE_NAME"] if "MAILGUN_TEMPLATE_NAME" in os.environ else "outreach_v1"
-MAILGUN_API_BASE = os.environ["MAILGUN_API_BASE"] if "MAILGUN_API_BASE" in os.environ else "https://api.eu.mailgun.net"
+MAILGUN_DOMAIN = "for.vdsai.se"
+MAILGUN_API_BASE = "https://api.eu.mailgun.net"
 
-MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"] if "MAIL_UTIL_DATADIR" in os.environ else None
-MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"] if "MAIL_UTIL_BATCH" in os.environ else None
-MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"] if "MAIL_UTIL_EMAIL" in os.environ else None
+MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"] 
+MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"] 
+MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"] 
 
 
 def _optional_path(base: Optional[str], name: Optional[str]) -> Optional[str]:
@@ -36,10 +34,8 @@ EMAIL_STATS_PATH = _optional_path(MAIL_DATA_DIR, MAIL_UTIL_EMAIL)
 
 __all__ = [
     "BREVO_API_KEY",
-    "BREVO_TEMPLATE_ID",
     "MAILGUN_API_KEY",
     "MAILGUN_DOMAIN",
-    "MAILGUN_TEMPLATE",
     "MAILGUN_API_BASE",
     "BATCH_STATS_PATH",
     "EMAIL_STATS_PATH",
@@ -79,7 +75,7 @@ def send_mailgun_message(
     api_key = MAILGUN_API_KEY
     if not api_key:
         raise RuntimeError("MAILGUN_API_KEY is not configured.")
-    template_name, template_params = template or (MAILGUN_TEMPLATE, {})
+    template_name, template_params = template 
     data = {
         "from": "Vikstrand Deep Solutions <info@vdsai.se>",
         "to": recipients,
