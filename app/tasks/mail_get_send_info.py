@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from ..mailgun_util import (
     BATCH_STATS_PATH,
     EMAIL_STATS_PATH,
+    MAILGUN_TAGS_EXCLUDE,
     MailgunEventsClient,
     MailgunPerRecipient,
     append_stats_row,
@@ -39,9 +40,7 @@ def _parse_day(value: Optional[str]) -> datetime:
 
 
 def collect_mailgun_day(
-    *,
     day_utc: datetime,
-    tag_label: Optional[str],
     emails_path: str,
     stats_path: str,
     events_client_factory=MailgunEventsClient,
@@ -52,20 +51,21 @@ def collect_mailgun_day(
     client = events_client_factory()
     per_recipient = per_recipient_factory(client, emails_path=emails_path)
 
-    rows = per_recipient.compute_rows_for_day(day_utc, tag_label=tag_label)
+    rows = per_recipient.compute_rows_for_day(day_utc)
     
     if rows:
         per_recipient.upsert_csv(rows, emails_path)
     else:
-        print(
-            f"[info] no per-recipient events for {day_utc.date()}"
-            + (f" tag '{tag_label}'" if tag_label else "")
-        )
+        print(f"[info] no per-recipient events for {day_utc.date()}")
         return
-    tag_label = tag_label or rows[-1].get("tag")
-    stats_row = compute_stats(day_utc, tag_label=tag_label, client=client)
-    append_stats(stats_path, stats_row)
-
+    
+    seen = set()
+    for row in rows:
+        tag = row.get("tag")
+        if tag and tag not in seen and tag not in MAILGUN_TAGS_EXCLUDE:
+            seen.add(tag)
+            stats_row = compute_stats(day_utc, tag_label=tag, client=client)
+            append_stats(stats_path, stats_row)
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -75,12 +75,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--day",
         metavar="YYYY-MM-DD",
         help="UTC day to collect (defaults to today).",
-    )
-    parser.add_argument(
-        "--tag",
-        dest="tag_label",
-        default=None,
-        help="Optional Mailgun tag label to filter recordings.",
     )
     parser.add_argument(
         "--emails-csv",
@@ -112,7 +106,6 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     collect_mailgun_day(
         day_utc=day_utc,
-        tag_label=args.tag_label,
         emails_path=emails_path,
         stats_path=stats_path,
     )

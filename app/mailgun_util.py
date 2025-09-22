@@ -16,10 +16,12 @@ BREVO_API_KEY = os.environ["BREVO_API_KEY"]
 MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
 MAILGUN_DOMAIN = "for.vdsai.se"
 MAILGUN_API_BASE = "https://api.eu.mailgun.net"
+MAILGUN_TAGS_EXCLUDE = {t.strip() for t in os.environ["MAILGUN_TAGS_EXCLUDE"].split(",") if t}
 
-MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"] 
-MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"] 
-MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"] 
+MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"]
+MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"]
+MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"]
+
 
 
 def _optional_path(base: Optional[str], name: Optional[str]) -> Optional[str]:
@@ -68,7 +70,6 @@ def fetch_brevo_template_html(template_id: int) -> tuple[str, str]:
 def send_mailgun_message(
     recipients: list[str],
     template: tuple[str, dict] | None = None,
-    *,
     tag: str | None = None,
 ) -> requests.Response:
     """Send a template-based message through Mailgun."""
@@ -209,8 +210,6 @@ class MailgunPerRecipient:
     def compute_rows_for_day(
         self,
         day_utc: datetime,
-        *,
-        tag_label: str | None = None,
     ) -> list[dict]:
         """Build per-recipient status for the given UTC day."""
         day = day_utc.date()
@@ -259,9 +258,7 @@ class MailgunPerRecipient:
                 if not recipient:
                     continue
                 event_tags = event.get("tags") or []
-                if tag_label and event_tags and tag_label not in event_tags:
-                    continue
-                tag_value = tag_label or (event_tags[0] if event_tags else "")
+                tag_value = event_tags[0] if event_tags else ""
                 record = record_for(recipient, tag_value)
                 self._touch(record, event, status)
 
@@ -344,7 +341,6 @@ class MailgunPerRecipient:
 
 def compute_day_stats(
     day_utc: datetime,
-    *,
     tag_label: str | None = None,
     client: MailgunEventsClient | None = None,
 ) -> dict:
@@ -361,7 +357,7 @@ def compute_day_stats(
         filtered: list[dict] = []
         for event in events:
             tags = event.get("tags") or []
-            if tags and tag_label not in tags:
+            if not tags or tag_label not in tags:
                 continue
             filtered.append(event)
         return filtered
