@@ -10,6 +10,8 @@ from typing import Optional
 import requests
 from dotenv import load_dotenv
 
+from app.api_client import get_contact_field
+
 load_dotenv()
 
 BREVO_API_KEY = os.environ["BREVO_API_KEY"]
@@ -21,6 +23,7 @@ MAILGUN_TAGS_EXCLUDE = {t.strip() for t in os.environ["MAILGUN_TAGS_EXCLUDE"].sp
 MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"]
 MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"]
 MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"]
+
 
 
 
@@ -77,6 +80,17 @@ def send_mailgun_message(
     if not api_key:
         raise RuntimeError("MAILGUN_API_KEY is not configured.")
     template_name, template_params = template 
+    
+    filtered_recipients = []
+    for recipient in recipients:
+        if get_contact_field(recipient, "unsub").lower() == "true":
+            print(f"[skip] unsubscribed for {recipient}")
+            continue
+        filtered_recipients.append(recipient)
+    recipients = filtered_recipients
+    if not recipients:
+        return
+    
     data = {
         "from": "Vikstrand Deep Solutions <info@vdsai.se>",
         "to": recipients,

@@ -105,10 +105,7 @@ def process_once(verbose: bool = False) -> None:
             if stage_value not in {"booked", "dropped"}:
                 update_contact(sender, {"stage": "dropped"})
 
-            note = (
-                f"Unsubscribed via email STOP from {sender} at "
-                f"{time.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
+            note = f"Unsubscribed at {time.strftime('%Y-%m-%d %H:%M:%S')}"
             append_contact_note(sender, note)
 
             if MOVE_TO:
