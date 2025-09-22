@@ -4,12 +4,16 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from typing import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
+import os
 
-from ..api_client import find_contact_by_email
+from ..api_client import find_contact_by_email, update_contact
 from ..mailgun_util import send_mailgun_message
+
+DFU1_DELTA = int(os.environ["DFU1_DELTA"])
+DFU2_DELTA = int(os.environ["DFU2_DELTA"])
 
 load_dotenv()
 
@@ -19,12 +23,14 @@ __all__ = [
     "build_argument_parser",
     "main",
     "resolve_stage",
-    "send_campaign",
-    "get_now",
+    "_verify_contact_rules",
+    "send_campaign_pipeline",
+    "get_now_with_delta",
 ]
 
-def get_now():
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
+def get_now_with_delta(days: int = 0) -> str:
+    return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d_%H:%M:%S")
+    
 
 @dataclass(frozen=True)
 class StageConfig:
@@ -32,17 +38,36 @@ class StageConfig:
     column_map: dict[str, str]
     static_params: dict[str, str]
     tag: str | None = None
+    contact_rules: list[tuple[str, str, str]] | None = None
+    contact_update: dict[str, str] | None = None
 
 
 STAGE_CONFIGS: dict[str, StageConfig] = {
     "intro": StageConfig(
-        template="v2",
+        template="intro_v1",
         column_map={"first_name": "first_name", "auto_number": "auto_number"},
         static_params={},
-        tag=f"intro_{get_now()}",
+        tag=f"intro_{get_now_with_delta()}",
+        contact_rules=[("stage", "not_in", ["intro", "booked", "dropped"])],
+        contact_update={"stage": "intro", "intro_date": get_now_with_delta(), "dfu1_date": get_now_with_delta(DFU1_DELTA)},
+    ),
+    "dfu1": StageConfig(
+        template="dfu1_v1",
+        column_map={"first_name": "first_name", "auto_number": "auto_number"},
+        static_params={},
+        tag=f"dfu1_{get_now_with_delta()}",
+        contact_rules=[("stage", "is", "intro")],
+        contact_update={"stage": "dfu1", "dfu2_date": get_now_with_delta(DFU2_DELTA)},
+    ),
+    "dfu2": StageConfig(
+        template="dfu2_v1",
+        column_map={"first_name": "first_name", "auto_number": "auto_number"},
+        static_params={},
+        tag=f"dfu2_{get_now_with_delta()}",
+        contact_rules=[("stage", "is", "dfu1")],
+        contact_update={"stage": "dfu2"},
     ),
 }
-
 
 def _build_template_params(
     contact: dict[str, str] | None,
@@ -71,8 +96,22 @@ def resolve_stage(stage: str) -> StageConfig:
         available = ", ".join(sorted(STAGE_CONFIGS)) or "<none>"
         raise ValueError(f"Unknown stage '{stage}'. Available stages: {available}") from exc
 
+def _verify_contact_rules(contact: dict[str, str], contact_rules: dict[str, str]):
+    for key, comp, value in contact_rules:
+        if comp == "is" and contact[key] == value:
+            continue
+        if comp == "is_not" and contact[key] != value:
+            continue
+        if comp == "in" and contact[key] in value:
+            continue
+        if comp == "not_in" and contact[key] not in value:
+            continue
+        print(f"[skip] {key} {comp} {value}, got: {contact[key]}")
+        return False
+    return True
 
-def send_campaign(
+
+def send_campaign_pipeline(
     *,
     stage: str,
     emails: list[str],
@@ -89,6 +128,18 @@ def send_campaign(
 
     for email in emails:
         contact = contact_lookup(email)
+        if not contact:
+            print(f"[skip] Contact not found for {email}")
+            continue
+        
+        if not _verify_contact_rules(contact, config.contact_rules):
+            continue
+        
+        if not dry_run:
+            update_contact(contact["email"], config.contact_update)
+        else:
+            print(f"[dry-run] stage '{stage}' would update {email} with {config.contact_update}")
+        
         try:
             params = _build_template_params(
                 contact,
@@ -153,7 +204,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = resolve_stage(args.stage)
-    send_campaign(
+    send_campaign_pipeline(
         stage=args.stage,
         emails=args.emails,
         config=config,

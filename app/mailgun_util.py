@@ -12,16 +12,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BREVO_API_KEY = os.getenv("BREVO_API_KEY")
-BREVO_TEMPLATE_ID = int(os.getenv("BREVO_TEMPLATE_ID", "2"))
-MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY")
-MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN", "for.vdsai.se")
-MAILGUN_TEMPLATE = os.getenv("MAILGUN_TEMPLATE_NAME", "outreach_v1")
-MAILGUN_API_BASE = os.getenv("MAILGUN_API_BASE", "https://api.eu.mailgun.net")
+BREVO_API_KEY = os.environ["BREVO_API_KEY"]
+BREVO_TEMPLATE_ID = int(os.environ["BREVO_TEMPLATE_ID"]) if "BREVO_TEMPLATE_ID" in os.environ else 2
+MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
+MAILGUN_DOMAIN = os.environ["MAILGUN_DOMAIN"] if "MAILGUN_DOMAIN" in os.environ else "for.vdsai.se"
+MAILGUN_TEMPLATE = os.environ["MAILGUN_TEMPLATE_NAME"] if "MAILGUN_TEMPLATE_NAME" in os.environ else "outreach_v1"
+MAILGUN_API_BASE = os.environ["MAILGUN_API_BASE"] if "MAILGUN_API_BASE" in os.environ else "https://api.eu.mailgun.net"
 
-MAIL_DATA_DIR = os.getenv("MAIL_UTIL_DATADIR")
-MAIL_UTIL_BATCH = os.getenv("MAIL_UTIL_BATCH")
-MAIL_UTIL_EMAIL = os.getenv("MAIL_UTIL_EMAIL")
+MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"] if "MAIL_UTIL_DATADIR" in os.environ else None
+MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"] if "MAIL_UTIL_BATCH" in os.environ else None
+MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"] if "MAIL_UTIL_EMAIL" in os.environ else None
 
 
 def _optional_path(base: Optional[str], name: Optional[str]) -> Optional[str]:
@@ -285,6 +285,7 @@ class MailgunPerRecipient:
 
         directory = os.path.dirname(target_path) or "."
         ensure_dir(directory)
+
         fieldnames = [
             "date_utc",
             "tag",
@@ -297,35 +298,52 @@ class MailgunPerRecipient:
             "last_seen",
         ]
 
-        existing: list[dict] = []
-        if os.path.exists(target_path):
+        existing_tags: set[str] = set()
+        file_exists = os.path.exists(target_path)
+        if file_exists:
             with open(target_path, newline="", encoding="utf-8") as handle:
                 reader = csv.DictReader(handle)
-                existing.extend(reader)
-        else:
-            with open(target_path, "w", newline="", encoding="utf-8") as handle:
-                writer = csv.DictWriter(handle, fieldnames=fieldnames)
-                writer.writeheader()
+                existing_tags = {row.get("tag", "") for row in reader}
 
-        index = {
-            (row["date_utc"], row["tag"], row["recipient"]): idx
-            for idx, row in enumerate(existing)
-        }
-
+        incoming_by_tag: dict[str, list[dict[str, str]]] = {}
         for record in rows:
-            key = (record["date_utc"], record["tag"], record["recipient"])
+            tag_value = record.get("tag", "")
             serialised = {field: str(record.get(field, "")) for field in fieldnames}
-            if key in index:
-                existing[index[key]] = serialised
+            incoming_by_tag.setdefault(tag_value, []).append(serialised)
+
+        skipped_tags = sorted({tag for tag in incoming_by_tag if tag in existing_tags})
+        new_rows: list[dict[str, str]] = []
+        for tag_value, serialised_rows in incoming_by_tag.items():
+            if tag_value in existing_tags:
+                continue
+            new_rows.extend(serialised_rows)
+
+        if not new_rows:
+            if skipped_tags:
+                formatted = ", ".join(tag or "<none>" for tag in skipped_tags)
+                print(
+                    f"[info] per-recipient tag(s) already recorded in {target_path}: {formatted}"
+                )
             else:
-                existing.append(serialised)
+                print(f"[info] no per-recipient rows to append -> {target_path}")
+            return
 
-        with open(target_path, "w", newline="", encoding="utf-8") as handle:
+        with open(target_path, "a", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(existing)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerows(new_rows)
 
-        print(f"Upserted {len(rows)} per-recipient rows -> {target_path}")
+        appended_tags = sorted({row["tag"] for row in new_rows})
+        appended_display = ", ".join(tag or "<none>" for tag in appended_tags)
+        print(
+            f"Appended {len(new_rows)} per-recipient rows for tag(s) {appended_display} -> {target_path}"
+        )
+        if skipped_tags:
+            skipped_display = ", ".join(tag or "<none>" for tag in skipped_tags)
+            print(f"[info] skipped existing per-recipient tag(s): {skipped_display}")
+
+
 
 
 def compute_day_stats(
@@ -394,27 +412,28 @@ def compute_day_stats(
     }
 
 
-def _stats_existing_keys(csv_path: str) -> set[tuple[str, str]]:
-    """Return (date_utc, tag) tuples already present in the stats CSV."""
+def _stats_existing_tags(csv_path: str) -> set[str]:
+    """Return tag labels already present in the stats CSV."""
     if not os.path.exists(csv_path):
         return set()
-    keys: set[tuple[str, str]] = set()
+    tags: set[str] = set()
     with open(csv_path, newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            keys.add((row.get("date_utc", ""), row.get("tag", "")))
-    return keys
+            tags.add(row.get("tag", ""))
+    return tags
 
 
 def append_stats_row(csv_path: str, row: dict) -> None:
-    """Append a stats row unless (date_utc, tag) already exists."""
+    """Append a stats row unless the tag is already present."""
     directory = os.path.dirname(csv_path) or "."
     ensure_dir(directory)
     exists = os.path.exists(csv_path)
-    keyset = _stats_existing_keys(csv_path)
-    key = (row["date_utc"], row["tag"])
-    if key in keyset:
-        print(f"Skipped stats (already present): date={row['date_utc']} tag='{row['tag']}'")
+    existing_tags = _stats_existing_tags(csv_path)
+    tag_value = row.get("tag", "")
+    if tag_value in existing_tags:
+        tag_display = tag_value or "<none>"
+        print(f"Skipped stats (tag already present): tag='{tag_display}'")
         return
 
     fieldnames = [

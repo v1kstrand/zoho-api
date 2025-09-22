@@ -274,27 +274,14 @@ def test_mailgun_per_recipient_upsert_real_csv(email_csv_path, fake_mailgun_clie
         writer.writerow(
             {
                 "date_utc": "2024-09-01",
-                "tag": "campaign",
-                "recipient": "foo@example.com",
+                "tag": "previous",
+                "recipient": "legacy@example.com",
                 "status": "delivered",
                 "smtp_code": "250",
                 "smtp_message": "sent",
-                "message_id": "<old@id>",
+                "message_id": "<legacy@id>",
                 "first_seen": "1",
                 "last_seen": "1",
-            }
-        )
-        writer.writerow(
-            {
-                "date_utc": "2024-09-01",
-                "tag": "campaign",
-                "recipient": "bar@example.com",
-                "status": "opened",
-                "smtp_code": "",
-                "smtp_message": "",
-                "message_id": "",
-                "first_seen": "2",
-                "last_seen": "2",
             }
         )
 
@@ -304,15 +291,26 @@ def test_mailgun_per_recipient_upsert_real_csv(email_csv_path, fake_mailgun_clie
     per_recipient.upsert_csv(rows, str(email_csv_path))
 
     with open(email_csv_path, newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        data = {row["recipient"]: row for row in reader}
+        first_snapshot = list(csv.DictReader(handle))
 
+    assert len(first_snapshot) == 4
+    data = {row["recipient"]: row for row in first_snapshot}
+
+    assert data["legacy@example.com"]["tag"] == "previous"
     assert data["foo@example.com"]["status"] == "failed_permanent"
     assert data["foo@example.com"]["smtp_code"] == "550"
     assert data["foo@example.com"]["first_seen"] == "10"
     assert data["bar@example.com"]["status"] == "failed_temporary"
     assert data["bar@example.com"]["smtp_code"] == "421"
     assert data["baz@example.com"]["status"] == "delivered"
+
+    per_recipient.upsert_csv(rows, str(email_csv_path))
+
+    with open(email_csv_path, newline="", encoding="utf-8") as handle:
+        second_snapshot = list(csv.DictReader(handle))
+
+    assert second_snapshot == first_snapshot
+
 
 
 def test_append_stats_row_real_csv(stats_csv_path):

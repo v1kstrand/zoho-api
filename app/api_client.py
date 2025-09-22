@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import uuid
@@ -13,7 +13,7 @@ import pandas as pd
 JSON = Dict[str, Any]
 
 BASE_DIR = Path.cwd()
-CSV_PATH = Path(os.environ.get("CONTACTS_CSV_PATH"))
+CSV_PATH = Path(os.environ["CONTACTS_CSV_PATH"])
 
 COLUMNS: List[str] = [
     "id",
@@ -36,7 +36,7 @@ COLUMNS: List[str] = [
 ]
 EMAIL_COLUMN = "email"
 NOTES_COLUMN = "notes"
-CASE_INS = True
+CASE_INS = os.environ["CLIENT_CASE_INSENSITIVE"] == "true"
 
 
 class ContactStore:
@@ -203,7 +203,10 @@ class ContactStore:
         payload = {key: self._coerce(value) for key, value in fields.items() if key in COLUMNS}
         if not payload:
             raise ValueError("No recognised fields supplied")
-
+        for key in fields:
+            if key not in COLUMNS:
+                print(f"[WARNING] Unknown column {key!r}")
+        
         idx = self._row_index_by_email(email)
         if idx is None:
             raise ValueError(f"Contact with email={email!r} not found")

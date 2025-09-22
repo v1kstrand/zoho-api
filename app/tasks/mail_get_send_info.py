@@ -53,6 +53,7 @@ def collect_mailgun_day(
     per_recipient = per_recipient_factory(client, emails_path=emails_path)
 
     rows = per_recipient.compute_rows_for_day(day_utc, tag_label=tag_label)
+    
     if rows:
         per_recipient.upsert_csv(rows, emails_path)
     else:
@@ -60,7 +61,8 @@ def collect_mailgun_day(
             f"[info] no per-recipient events for {day_utc.date()}"
             + (f" tag '{tag_label}'" if tag_label else "")
         )
-
+        return
+    tag_label = tag_label or rows[-1].get("tag")
     stats_row = compute_stats(day_utc, tag_label=tag_label, client=client)
     append_stats(stats_path, stats_row)
 

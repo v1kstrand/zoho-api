@@ -18,12 +18,16 @@ from ..mail_utils import imap_connect_with_retry, message_body_text, move_messag
 # ---------------------------------------------------------------------
 # Config / Environment
 # ---------------------------------------------------------------------
-IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
-IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
-IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
-BOOKING_FOLDER = os.environ.get("ZOHO_IMAP_FOLDER")
-MOVE_BOOKING_TO = os.environ.get("BOOKING_IMAP_MOVE_TO")
-DRY_RUN = os.environ.get("BOOKING_DRY_RUN").lower() == "true"
+IMAP_HOST = "imap.zoho.eu"
+IMAP_USER = os.environ["ZOHO_IMAP_USER"]             # required
+IMAP_PASS = os.environ["ZOHO_IMAP_PASSWORD"]         # required
+BOOKING_FOLDER = os.environ["ZOHO_IMAP_FOLDER"]
+MOVE_BOOKING_TO = os.environ["BOOKING_IMAP_MOVE_TO"]
+DRY_RUN = (
+    os.environ["BOOKING_DRY_RUN"].strip().lower() == "true"
+    if "BOOKING_DRY_RUN" in os.environ
+    else False
+)
 if DRY_RUN:
     print("Dry run enabled")
 
