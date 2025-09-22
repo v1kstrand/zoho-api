@@ -1,6 +1,6 @@
 ﻿import textwrap
 
-from app.parse_mail import parse_mail
+from old.parse_mail import parse_mail
 
 
 def test_parse_mail_with_full_details():

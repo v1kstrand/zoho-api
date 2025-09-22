@@ -3,7 +3,7 @@ from email.header import Header
 
 import pytest
 
-from app.tasks import mail_bookings_trigger as bookings
+from app.tasks import cal_bookings_trigger as bookings
 import app.mail_utils as mail_utils
 
 
