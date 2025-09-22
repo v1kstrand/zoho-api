@@ -7,7 +7,7 @@ if str(ROOT) not in sys.path:
 
 import pytest
 
-import app.tasks.mail_send_from_mailgun as task
+import app.tasks.mailgun_send_campaign as task
 
 
 def test_resolve_stage_known():

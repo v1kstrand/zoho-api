@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-import app.tasks.mail_get_send_info as get_info
+import app.tasks.mailgun_update_stats as get_info
 
 
 def test_collect_mailgun_day(monkeypatch):

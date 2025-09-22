@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.tasks import mail_unsub_poll as unsub
+from app.tasks import unsub_poll as unsub
 
 
 def make_message(subject="", from_addr="User <user@example.com>"):
