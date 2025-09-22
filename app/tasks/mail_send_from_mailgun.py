@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
 
-from ..api_client import find_contact_by_email, update_contact
+from ..api_client import find_contact_by_email, update_contact, get_contact_field
 from ..mailgun_util import send_mailgun_message
 
 DFU1_DELTA = int(os.environ["DFU1_DELTA"])
@@ -130,6 +130,10 @@ def send_campaign_pipeline(
         contact = contact_lookup(email)
         if not contact:
             print(f"[skip] Contact not found for {email}")
+            continue
+        
+        if get_contact_field(email, "unsub") == "true":
+            print(f"[skip] Contact unsubscribed for {email}")
             continue
         
         if not _verify_contact_rules(contact, config.contact_rules):

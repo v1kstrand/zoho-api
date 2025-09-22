@@ -100,7 +100,7 @@ def process_once(verbose: bool = False) -> None:
                     print(f"[warn] no contact for {sender}")
                 continue
 
-            update_contact(sender, {"unsub": "True"})
+            update_contact(sender, {"unsub": "true"})
             stage_value = get_contact_field(sender, "stage").strip().lower()
             if stage_value not in {"booked", "dropped"}:
                 update_contact(sender, {"stage": "dropped"})

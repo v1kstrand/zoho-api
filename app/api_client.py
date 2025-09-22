@@ -30,7 +30,7 @@ COLUMNS: List[str] = [
     "stage",
     "notes",
     "unsub",
-    "into_date",
+    "intro_date",
     "dfu1_date",
     "dfu2_date",
 ]
