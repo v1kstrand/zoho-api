@@ -12,6 +12,7 @@ IMAP_USER = os.environ["ZOHO_IMAP_USER"]
 IMAP_PASS = os.environ["ZOHO_IMAP_PASSWORD"]
 IMAP_FOLDER = os.environ["ZOHO_IMAP_FOLDER"]
 
+
 _HTML_SANITIZE_PATTERNS = {
     "scripts": re.compile(r"(?is)<(script|style).*?>.*?</\1>"),
     "br": re.compile(r"(?is)<br\s*/?>"),
