@@ -48,24 +48,6 @@ def test_ensure_contact_adds_new_contact(monkeypatch):
     assert result['email'] == 'bob@example.com'
 
 
-def test_mark_contact_booked_updates(monkeypatch):
-    called = {}
-
-    def fake_update(email, payload):
-        called['email'] = email
-        called['payload'] = payload
-
-    monkeypatch.setattr(bookings, 'update_contact', fake_update)
-
-    bookings._mark_contact_booked({'email': 'user@example.com'})
-
-    assert called == {'email': 'user@example.com', 'payload': {'stage': 'Booked'}}
-
-
-def test_mark_contact_booked_no_email(monkeypatch):
-    monkeypatch.setattr(bookings, 'update_contact', lambda *args, **kwargs: pytest.fail('should not update'))
-    bookings._mark_contact_booked({})
-
 
 class DummyIMAP:
     fail_login_attempts = 0

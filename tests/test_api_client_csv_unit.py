@@ -2,7 +2,7 @@
 
 import pytest
 
-import app.api_client_csv as contacts
+import app.api_client as contacts
 
 
 @pytest.fixture()

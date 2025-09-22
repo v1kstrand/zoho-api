@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from ..api_client_csv import add_contact, find_contact_by_email, update_contact, get_contact_field
+from ..api_client import add_contact, find_contact_by_email, update_contact, get_contact_field
 from ..parse_mail import parse_mail
 from ..mail_utils import imap_connect_with_retry, message_body_text, move_message
 
@@ -21,9 +21,9 @@ from ..mail_utils import imap_connect_with_retry, message_body_text, move_messag
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
 IMAP_USER = os.environ.get("ZOHO_IMAP_USER")             # required
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")         # required
-BOOKING_FOLDER = os.getenv("ZOHO_IMAP_FOLDER")
-MOVE_BOOKING_TO = os.getenv("BOOKING_MOVE_TO")
-DRY_RUN = os.getenv("BOOKING_DRY_RUN").lower() == "true"
+BOOKING_FOLDER = os.environ.get("ZOHO_IMAP_FOLDER")
+MOVE_BOOKING_TO = os.environ.get("BOOKING_IMAP_MOVE_TO")
+DRY_RUN = os.environ.get("BOOKING_DRY_RUN").lower() == "true"
 if DRY_RUN:
     print("Dry run enabled")
 

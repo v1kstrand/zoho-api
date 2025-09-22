@@ -72,6 +72,8 @@ def fetch_brevo_template_html(template_id: int) -> tuple[str, str]:
 def send_mailgun_message(
     recipients: list[str],
     template: tuple[str, dict] | None = None,
+    *,
+    tag: str | None = None,
 ) -> requests.Response:
     """Send a template-based message through Mailgun."""
     api_key = MAILGUN_API_KEY
@@ -84,6 +86,8 @@ def send_mailgun_message(
         "template": template_name,
         "t:variables": json.dumps(template_params),
     }
+    if tag:
+        data["o:tag"] = tag
     response = requests.post(
         f"{MAILGUN_API_BASE}/v3/{MAILGUN_DOMAIN}/messages",
         auth=("api", api_key),
@@ -196,10 +200,15 @@ class MailgunPerRecipient:
 
         if delivery_status.get("code"):
             record["smtp_code"] = delivery_status.get("code")
-        if delivery_status.get("message"):
-            record["smtp_message"] = delivery_status.get("message")
+        message = delivery_status.get("message")
+        if message:
+            record["smtp_message"] = " ".join(message.splitlines())
         if message_id:
             record["message_id"] = message_id
+
+        event_tags = event.get("tags") or []
+        if event_tags and not record.get("tag"):
+            record["tag"] = event_tags[0]
 
     def compute_rows_for_day(
         self,
@@ -215,12 +224,12 @@ class MailgunPerRecipient:
 
         records: dict[tuple[str, str], dict] = {}
 
-        def record_for(recipient: str) -> dict:
-            key = (recipient, tag_label or "")
+        def record_for(recipient: str, tag_value: str) -> dict:
+            key = (recipient, tag_value)
             if key not in records:
                 records[key] = {
                     "date_utc": day.strftime("%Y-%m-%d"),
-                    "tag": tag_label or "",
+                    "tag": tag_value,
                     "recipient": recipient,
                     "status": None,
                     "smtp_code": "",
@@ -251,8 +260,14 @@ class MailgunPerRecipient:
             )
             for event in events:
                 recipient = event.get("recipient")
-                if recipient:
-                    self._touch(record_for(recipient), event, status)
+                if not recipient:
+                    continue
+                event_tags = event.get("tags") or []
+                if tag_label and event_tags and tag_label not in event_tags:
+                    continue
+                tag_value = tag_label or (event_tags[0] if event_tags else "")
+                record = record_for(recipient, tag_value)
+                self._touch(record, event, status)
 
         rows: list[dict] = []
         for record in records.values():
@@ -326,19 +341,40 @@ def compute_day_stats(
     end = datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=timezone.utc)
     begin_str, end_str = rfc2822(begin), rfc2822(end)
 
-    failed_all = client.fetch_events_single_page("failed", begin_str, end_str, limit=100)
-    failed_perm = client.fetch_events_single_page(
-        "failed",
-        begin_str,
-        end_str,
-        limit=100,
-        extra={"severity": "permanent"},
+    def _filter_by_tag(events: list[dict]) -> list[dict]:
+        if not tag_label:
+            return events
+        filtered: list[dict] = []
+        for event in events:
+            tags = event.get("tags") or []
+            if tags and tag_label not in tags:
+                continue
+            filtered.append(event)
+        return filtered
+
+    failed_all = _filter_by_tag(
+        client.fetch_events_single_page("failed", begin_str, end_str, limit=100)
+    )
+    failed_perm = _filter_by_tag(
+        client.fetch_events_single_page(
+            "failed",
+            begin_str,
+            end_str,
+            limit=100,
+            extra={"severity": "permanent"},
+        )
     )
     failed_temp = [event for event in failed_all if event.get("severity") == "temporary"]
 
-    dropped = client.fetch_events_single_page("dropped", begin_str, end_str, limit=100)
-    rejected = client.fetch_events_single_page("rejected", begin_str, end_str, limit=100)
-    delivered = client.fetch_events_single_page("delivered", begin_str, end_str, limit=100)
+    dropped = _filter_by_tag(
+        client.fetch_events_single_page("dropped", begin_str, end_str, limit=100)
+    )
+    rejected = _filter_by_tag(
+        client.fetch_events_single_page("rejected", begin_str, end_str, limit=100)
+    )
+    delivered = _filter_by_tag(
+        client.fetch_events_single_page("delivered", begin_str, end_str, limit=100)
+    )
 
     not_delivered_total = len(failed_perm) + len(failed_temp) + len(dropped) + len(rejected)
     delivered_count = len(delivered)

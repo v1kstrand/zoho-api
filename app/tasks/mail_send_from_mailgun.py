@@ -1,13 +1,14 @@
-﻿# app/tasks/mail_send_from_mailgun_with_details.py
+﻿# app/tasks/mail_send_from_mailgun.py
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
 from typing import Iterable
+from datetime import datetime
 
 from dotenv import load_dotenv
 
-from ..api_client_csv import find_contact_by_email
+from ..api_client import find_contact_by_email
 from ..mailgun_util import send_mailgun_message
 
 load_dotenv()
@@ -19,14 +20,18 @@ __all__ = [
     "main",
     "resolve_stage",
     "send_campaign",
+    "get_now",
 ]
 
+def get_now():
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 @dataclass(frozen=True)
 class StageConfig:
     template: str
     column_map: dict[str, str]
     static_params: dict[str, str]
+    tag: str | None = None
 
 
 STAGE_CONFIGS: dict[str, StageConfig] = {
@@ -34,6 +39,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         template="v2",
         column_map={"first_name": "first_name", "auto_number": "auto_number"},
         static_params={},
+        tag=f"intro_{get_now()}",
     ),
 }
 
@@ -77,6 +83,9 @@ def send_campaign(
 ) -> None:
     mailgun_errors: list[str] = []
     delivered_to = 0
+    message_kwargs = {"tag": config.tag} if config.tag else {}
+    if config.tag:
+        print(f"[info] using Mailgun tag '{config.tag}'")
 
     for email in emails:
         contact = contact_lookup(email)
@@ -101,7 +110,7 @@ def send_campaign(
             continue
 
         try:
-            send_message([email], (config.template, params))
+            send_message([email], (config.template, params), **message_kwargs)
             delivered_to += 1
             print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
         except Exception as exc:  # pragma: no cover - best effort logging only

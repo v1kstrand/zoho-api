@@ -11,19 +11,19 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from ..api_client_csv import append_contact_note, find_contact_by_email, update_contact, get_contact_field
+from ..api_client import append_contact_note, find_contact_by_email, update_contact, get_contact_field
 from ..mail_utils import imap_connect_with_retry, message_body_text, move_message
 
 IMAP_HOST = os.getenv("ZOHO_IMAP_HOST", "imap.zoho.eu")
 IMAP_USER = os.environ.get("ZOHO_IMAP_USER")
 IMAP_PASS = os.environ.get("ZOHO_IMAP_PASSWORD")
-IMAP_FOLDER = os.getenv("ZOHO_IMAP_FOLDER")
-MOVE_TO = os.getenv("UNSUB_IMAP_MOVE_TO")
-DRY_RUN = os.getenv("UNSUB_DRY_RUN").lower() == "true"
+IMAP_FOLDER = os.environ.get("ZOHO_IMAP_FOLDER")
+MOVE_TO = os.environ.get("UNSUB_IMAP_MOVE_TO")
+DRY_RUN = os.environ.get("UNSUB_DRY_RUN").lower() == "true"
 if DRY_RUN:
     print("Dry run enabled")
 
-STOP_KEYWORDS = os.getenv("UNSUB_STOP_KEYWORDS")
+STOP_KEYWORDS = os.environ.get("UNSUB_STOP_KEYWORDS")
 if STOP_KEYWORDS:
     STOP_KEYWORDS = {word.strip().lower() for word in STOP_KEYWORDS.split(",") if word.strip()}
 SUBJECT_HINT = re.compile(r"\b(stop|unsubscribe|avregistrera|sluta)\b", re.I)

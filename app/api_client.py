@@ -1,7 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 from dotenv import load_dotenv
@@ -106,7 +107,7 @@ class ContactStore:
         return (value or "").strip().lower()
     
     def _get_now(self):
-        return pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def _row_index_by_email(self, email: str) -> Optional[int]:
         """Return the index of the row matching the given email if present."""
@@ -300,5 +301,7 @@ __all__ = [
     "get_contact_field",
     "ContactStore",
 ]
+
+
 
 
