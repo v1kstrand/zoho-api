@@ -13,9 +13,11 @@ from ..mailgun_util import (
     MAILGUN_TAGS_EXCLUDE,
     MailgunEventsClient,
     MailgunPerRecipient,
-    append_stats_row,
-    compute_day_stats,
+    append_batch_stats_row,
+    compute_batch_stats,
 )
+
+
 
 load_dotenv()
 
@@ -38,21 +40,20 @@ def _parse_day(value: Optional[str]) -> datetime:
 
 
 def collect_mailgun_day(
+    *,
     day_utc: datetime,
-    emails_path: str,
-    stats_path: str,
     events_client_factory=MailgunEventsClient,
     per_recipient_factory=MailgunPerRecipient,
-    compute_stats=compute_day_stats,
-    append_stats=append_stats_row,
+    compute_batch_stats=compute_batch_stats,
+    append_batch_stats=append_batch_stats_row,
 ) -> None:
     client = events_client_factory()
-    per_recipient = per_recipient_factory(client, emails_path=emails_path)
+    per_recipient = per_recipient_factory(client, emails_path=EMAIL_STATS_PATH)
 
     rows = per_recipient.compute_rows_for_day(day_utc)
     
     if rows:
-        per_recipient.upsert_csv(rows, emails_path)
+        per_recipient.upsert_csv(rows, EMAIL_STATS_PATH)
     else:
         print(f"[info] no per-recipient events for {day_utc.date()}")
         return
@@ -62,8 +63,8 @@ def collect_mailgun_day(
         tag = row.get("tag")
         if tag and tag not in seen and tag not in MAILGUN_TAGS_EXCLUDE:
             seen.add(tag)
-            stats_row = compute_stats(day_utc, tag_label=tag, client=client)
-            append_stats(stats_path, stats_row)
+            stats_row = compute_batch_stats(day_utc, tag_label=tag, client=client)
+            append_batch_stats(BATCH_STATS_PATH, stats_row)
 
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -74,39 +75,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
         metavar="YYYY-MM-DD",
         help="UTC day to collect (defaults to today).",
     )
-    parser.add_argument(
-        "--emails-csv",
-        dest="emails_csv",
-        default=None,
-        help="Path for per-recipient CSV (overrides MAIL_UTIL_DATADIR/MAIL_UTIL_BATCH).",
-    )
-    parser.add_argument(
-        "--stats-csv",
-        dest="stats_csv",
-        default=None,
-        help="Path for per-day stats CSV (overrides MAIL_UTIL_DATADIR/MAIL_UTIL_EMAIL).",
-    )
     return parser
 
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_argument_parser()
     args = parser.parse_args(argv)
-
     day_utc = _parse_day(args.day)
-    emails_path = args.emails_csv or BATCH_STATS_PATH
-    stats_path = args.stats_csv or EMAIL_STATS_PATH
-
-    if not emails_path or not stats_path:
-        parser.error(
-            "Set MAIL_UTIL_DATADIR/MAIL_UTIL_BATCH/MAIL_UTIL_EMAIL or supply --emails-csv/--stats-csv."
-        )
-
-    collect_mailgun_day(
-        day_utc=day_utc,
-        emails_path=emails_path,
-        stats_path=stats_path,
-    )
+    collect_mailgun_day( day_utc=day_utc)
     return 0
 
 

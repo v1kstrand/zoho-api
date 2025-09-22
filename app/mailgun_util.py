@@ -50,8 +50,8 @@ __all__ = [
     "rfc2822",
     "MailgunEventsClient",
     "MailgunPerRecipient",
-    "compute_day_stats",
-    "append_stats_row",
+    "compute_batch_stats",
+    "append_batch_stats_row",
 ]
 
 
@@ -353,7 +353,7 @@ class MailgunPerRecipient:
 
 
 
-def compute_day_stats(
+def compute_batch_stats(
     day_utc: datetime,
     tag_label: str | None = None,
     client: MailgunEventsClient | None = None,
@@ -430,7 +430,7 @@ def _stats_existing_tags(csv_path: str) -> set[str]:
     return tags
 
 
-def append_stats_row(csv_path: str, row: dict) -> None:
+def append_batch_stats_row(csv_path: str, row: dict) -> None:
     """Append a stats row unless the tag is already present."""
     directory = os.path.dirname(csv_path) or "."
     ensure_dir(directory)

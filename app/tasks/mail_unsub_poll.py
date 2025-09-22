@@ -9,15 +9,12 @@ from email.header import decode_header, make_header
 from typing import Optional
 
 from dotenv import load_dotenv
-load_dotenv()
 
 from ..api_client import append_contact_note, find_contact_by_email, update_contact, get_contact_field
-from ..mail_utils import imap_connect_with_retry, message_body_text, move_message
+from ..mail_utils import imap_connect_with_retry, message_body_text, move_message, IMAP_FOLDER
 
-IMAP_HOST = os.environ["ZOHO_IMAP_HOST"] if "ZOHO_IMAP_HOST" in os.environ else "imap.zoho.eu"
-IMAP_USER = os.environ["ZOHO_IMAP_USER"]
-IMAP_PASS = os.environ["ZOHO_IMAP_PASSWORD"]
-IMAP_FOLDER = os.environ["ZOHO_IMAP_FOLDER"]
+load_dotenv()
+
 MOVE_TO = os.environ["UNSUB_IMAP_MOVE_TO"]
 DRY_RUN = (
     os.environ["UNSUB_DRY_RUN"].strip().lower() == "true"
@@ -57,14 +54,8 @@ def _looks_like_stop(msg: email.message.Message, body: str) -> bool:
 
 def process_once(verbose: bool = False) -> None:
     """Scan for STOP mails and mark matching contacts as unsubscribed."""
-    if not IMAP_USER or not IMAP_PASS:
-        raise RuntimeError("Set ZOHO_IMAP_USER and ZOHO_IMAP_PASSWORD in environment")
 
     imap = imap_connect_with_retry(
-        IMAP_HOST,
-        IMAP_USER,
-        IMAP_PASS,
-        IMAP_FOLDER,
         ensure_folder=MOVE_TO,
         verbose=verbose,
     )

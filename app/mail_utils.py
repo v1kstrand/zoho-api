@@ -5,6 +5,12 @@ import imaplib
 import re
 import time
 from typing import Optional
+import os
+
+IMAP_HOST = "imap.zoho.eu"
+IMAP_USER = os.environ["ZOHO_IMAP_USER"]
+IMAP_PASS = os.environ["ZOHO_IMAP_PASSWORD"]
+IMAP_FOLDER = os.environ["ZOHO_IMAP_FOLDER"]
 
 _HTML_SANITIZE_PATTERNS = {
     "scripts": re.compile(r"(?is)<(script|style).*?>.*?</\1>"),
@@ -32,11 +38,10 @@ def ensure_mailbox(imap: imaplib.IMAP4, mailbox: Optional[str]) -> None:
 
 
 def imap_connect_with_retry(
-    host: str,
-    user: str,
-    password: str,
-    select_folder: str,
-    *,
+    host: str = IMAP_HOST,
+    user: str = IMAP_USER,
+    password: str = IMAP_PASS,
+    select_folder: str = IMAP_FOLDER,
     ensure_folder: Optional[str] = None,
     attempts: int = 3,
     delay: float = 2.0,
