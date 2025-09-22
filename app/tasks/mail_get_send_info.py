@@ -17,8 +17,6 @@ from ..mailgun_util import (
     compute_day_stats,
 )
 
-
-
 load_dotenv()
 
 __all__ = [
