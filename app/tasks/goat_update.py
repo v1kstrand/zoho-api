@@ -2,10 +2,8 @@ import requests, os
 from urllib.parse import urlsplit, parse_qs
 from collections import defaultdict
 from app import api_client
-import os
 
 GOAT_API_KEY = os.environ['GOAT_API_KEY']
-
 BASE = "https://v1kstrand.goatcounter.com/api/v0"
 HEAD = {"Authorization": f"Bearer {GOAT_API_KEY}", "Content-Type": "application/json"}
 
