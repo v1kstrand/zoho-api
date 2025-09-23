@@ -25,9 +25,6 @@ MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"]
 MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"]
 MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"]
 
-
-
-
 def _optional_path(base: Optional[str], name: Optional[str]) -> Optional[str]:
     if not base or not name:
         return None

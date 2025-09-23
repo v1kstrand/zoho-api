@@ -14,6 +14,7 @@ JSON = Dict[str, Any]
 
 BASE_DIR = Path.cwd()
 CSV_PATH = Path(os.environ["CONTACTS_CSV_PATH"])
+CSV_BACKUP_PATH = Path(os.environ["CONTACTS_CSV_BACKUP_PATH"])
 
 COLUMNS: List[str] = [
     "id",
@@ -26,13 +27,13 @@ COLUMNS: List[str] = [
     "created_time",
     "outreach_idx",
     "auto_number",
-    "last_touch_date",
     "stage",
     "notes",
     "unsub",
     "intro_date",
     "dfu1_date",
     "dfu2_date",
+    "num_visits"
 ]
 EMAIL_COLUMN = "email"
 NOTES_COLUMN = "notes"
@@ -42,8 +43,9 @@ CASE_INS = os.environ["CLIENT_CASE_INSENSITIVE"] == "true"
 class ContactStore:
     """In-memory contact store backed by a CSV file (email is the key)."""
 
-    def __init__(self, csv_path: Path = CSV_PATH) -> None:
-        self.path = Path(csv_path)
+    def __init__(self) -> None:
+        self.path = Path(CSV_PATH)
+        self.backup_path = Path(CSV_BACKUP_PATH)
         self._df: pd.DataFrame | None = None
 
     # ------------------------------------------------------------------
@@ -66,11 +68,11 @@ class ContactStore:
         """Read the CSV from disk (or build an empty frame when missing)."""
         if not self.path.exists():
             return self._empty_frame()
-        df = pd.read_csv(self.path, dtype=str, keep_default_na=False)
+        df = pd.read_csv(self.path, keep_default_na=False)
         if df.empty:
             return self._empty_frame()
         df = df.fillna("")
-        return self._ensure_columns(df).astype(str)
+        return self._ensure_columns(df)
 
     def _ensure_loaded(self) -> pd.DataFrame:
         """Guarantee that the DataFrame is loaded into memory."""
@@ -289,6 +291,12 @@ def filter_contacts(criteria: Dict[str, Any]) -> List[JSON]:
 def append_contact_note(email: str, note: str) -> JSON:
     """Append a textual note to the contact's notes column."""
     return _store.append_contact_note(email, note)
+
+def get_df():
+    return _store._ensure_loaded()
+
+def save_df():
+    _store._save()
 
 
 # Compatibility aliases (email-only API)
