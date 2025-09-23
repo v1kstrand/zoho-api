@@ -80,7 +80,7 @@ def send_mailgun_message(
     api_key = MAILGUN_API_KEY
     if not api_key:
         raise RuntimeError("MAILGUN_API_KEY is not configured.")
-    template_name, template_params = template 
+    template_name, template_params = template
     
     filtered_recipients = []
     for recipient in recipients:
@@ -184,7 +184,7 @@ class MailgunPerRecipient:
     def __init__(
         self,
         client: MailgunEventsClient | None = None,
-        emails_path: str | None = BATCH_STATS_PATH,
+        emails_path: str | None = EMAIL_STATS_PATH,
     ) -> None:
         self.client = client or MailgunEventsClient()
         self.emails_path = emails_path
@@ -431,7 +431,7 @@ def _stats_existing_tags(csv_path: str) -> set[str]:
     return tags
 
 
-def append_batch_stats_row(csv_path: str, row: dict) -> None:
+def append_batch_stats_row(row: dict, csv_path: str=BATCH_STATS_PATH) -> None:
     """Append a stats row unless the tag is already present."""
     directory = os.path.dirname(csv_path) or "."
     ensure_dir(directory)
