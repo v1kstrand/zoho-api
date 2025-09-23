@@ -5,6 +5,7 @@ import argparse
 from dataclasses import dataclass
 from typing import Iterable
 from datetime import datetime, timedelta
+import time
 
 from dotenv import load_dotenv
 import os
@@ -48,7 +49,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         column_map={"first_name": "first_name", "auto_number": "auto_number"},
         static_params={},
         tag=f"intro_{get_now_with_delta()}",
-        contact_rules=[("stage", "not_in", ["intro", "booked", "dropped"])],
+        contact_rules=[("stage", "is", "new")],
         contact_update={"stage": "intro", "intro_date": get_now_with_delta(), "dfu1_date": get_now_with_delta(DFU1_DELTA)},
     ),
     "dfu1": StageConfig(
@@ -139,11 +140,6 @@ def send_campaign_pipeline(
         if not _verify_contact_rules(contact, config.contact_rules):
             continue
         
-        if not dry_run:
-            update_contact(contact["email"], config.contact_update)
-        else:
-            print(f"[dry-run] stage '{stage}' would update {email} with {config.contact_update}")
-        
         try:
             params = _build_template_params(
                 contact,
@@ -163,14 +159,28 @@ def send_campaign_pipeline(
             )
             delivered_to += 1
             continue
-
-        try:
-            send_message([email], (config.template, params), **message_kwargs)
-            delivered_to += 1
-            print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
-        except Exception as exc:  # pragma: no cover - best effort logging only
-            print(f"[error] failed to send to {email}: {exc}")
-            mailgun_errors.append(f"{email}: {exc}")
+        
+        while True:
+            try:
+                send_message([email], (config.template, params), **message_kwargs)
+                delivered_to += 1
+                print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
+                break
+            except Exception as exc:  # pragma: no cover - best effort logging only
+                print(f"[error] failed to send to {email}: {exc}")
+                mailgun_errors.append(f"{email}: {exc}")
+                if "420" in str(exc):
+                    print(["[ERROR]: Mailgun rate limit exceeded."])
+                    return
+                if "429" in str(exc):
+                    print(["[ERROR]: Throttled by Mailgun. Retry in 2 minutes."])
+                    time.sleep(120)
+                    
+                
+        if not dry_run:
+            update_contact(contact["email"], config.contact_update)
+        else:
+            print(f"[dry-run] stage '{stage}' would update {email} with {config.contact_update}")
 
     if not dry_run and delivered_to == 0:
         print("[info] no messages sent")

@@ -2,7 +2,6 @@
 from __future__ import annotations
 import os
 from typing import Any, Dict, Optional
-
 from dotenv import load_dotenv
 
 from ..api_client import add_contact, find_contact_by_email, update_contact, get_contact_field
@@ -56,7 +55,6 @@ def process_bookings_once(verbose: bool = True) -> int:
             
             update_contact(email, {"stage": "booked"})
             send_mailgun_message([email], ["form_v1", {}], "intro_form")
-            
             handled += 1
             if verbose:
                 print(f"[ok] updated booking stage for {email}")

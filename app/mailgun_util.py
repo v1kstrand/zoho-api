@@ -6,6 +6,7 @@ import os
 from datetime import datetime, timezone
 from email.utils import format_datetime
 from typing import Optional
+import time
 
 import requests
 from dotenv import load_dotenv
@@ -459,4 +460,5 @@ def append_batch_stats_row(csv_path: str, row: dict) -> None:
         if not exists:
             writer.writeheader()
         writer.writerow(row)
+        time.sleep(0.1)
     print(f"Appended stats -> {csv_path}: {row}")
