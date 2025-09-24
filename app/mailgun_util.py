@@ -313,6 +313,9 @@ class MailgunPerRecipient:
         incoming_by_tag: dict[str, list[dict[str, str]]] = {}
         for record in rows:
             tag_value = record.get("tag", "")
+            if tag_value in MAILGUN_TAGS_EXCLUDE:
+                continue
+            
             serialised = {field: str(record.get(field, "")) for field in fieldnames}
             incoming_by_tag.setdefault(tag_value, []).append(serialised)
 

@@ -120,9 +120,16 @@ def send_campaign_pipeline(
     dry_run: bool = False,
     contact_lookup=find_contact_by_email,
     send_message=send_mailgun_message,
+    reset_tag=False,
+    custom_tag=None,
 ) -> None:
     mailgun_errors: list[str] = []
     delivered_to = 0
+    if reset_tag:
+        config.tag = f"{stage}_{get_now_with_delta()}"
+    if custom_tag:
+        config.tag = custom_tag
+    
     message_kwargs = {"tag": config.tag} if config.tag else {}
     if config.tag:
         print(f"[info] using Mailgun tag '{config.tag}'")
@@ -138,6 +145,7 @@ def send_campaign_pipeline(
             continue
         
         if not _verify_contact_rules(contact, config.contact_rules):
+            print(f"[skip] Contact rules not met for {email}")
             continue
         
         try:
@@ -165,6 +173,7 @@ def send_campaign_pipeline(
                 send_message([email], (config.template, params), **message_kwargs)
                 delivered_to += 1
                 print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
+                time.sleep(3)
                 break
             except Exception as exc:  # pragma: no cover - best effort logging only
                 print(f"[error] failed to send to {email}: {exc}")

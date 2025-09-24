@@ -63,6 +63,12 @@ class ContactStore:
             if column not in df.columns:
                 df[column] = ""
         return df[COLUMNS]
+    
+    def save_backup(self):
+        if self._df is None:
+            return
+        self.backup_path.parent.mkdir(parents=True, exist_ok=True)
+        self._df.to_csv(self.backup_path, index=False)
 
     def _load_from_disk(self) -> pd.DataFrame:
         """Read the CSV from disk (or build an empty frame when missing)."""
@@ -182,14 +188,26 @@ class ContactStore:
         if not email_value:
             raise ValueError("Email is required to add a contact")
         payload[EMAIL_COLUMN] = email_value
-
-        payload["id"] = uuid.uuid4().hex
-        payload["auto_number"] = self._next_auto_number()
-        payload["created_time"] = self._get_now()
-
+        
+        base = {
+            "id" : uuid.uuid4().hex[:6], 
+            "auto_number" : self._next_auto_number(), 
+            "created_time" : self._get_now(), 
+            "stage" : "new", 
+            "unsub" : "false"
+            }
+        
+        for k, v in base.items():
+            if k not in payload:
+                payload[k] = v
+                
+        if "first_name" in payload and "last_name" in payload:
+            payload["contact_name"] = f"{payload['first_name']} {payload['last_name']}"
+                
         idx = self._row_index_by_email(email_value)
         if idx is not None:
-            raise ValueError(f"Contact with email {payload['email']} already exists")
+            print(f"Contact with email {payload['email']} already exists")
+            return
 
         row = {col: "" for col in COLUMNS}
         row.update(payload)
@@ -255,11 +273,16 @@ class ContactStore:
         df.at[idx, NOTES_COLUMN] = f"{existing};{note}".strip() if existing else note
         self._save()
         return self._row_dict(df.loc[idx])
-
+    
+    def add_contacts_from_csv(self, csv_path: str) -> None    :
+        new_rows = pd.read_csv(csv_path)
+        for _, row in new_rows.iterrows():
+            self.add_contact(row.to_dict())
+        print(f"[info] added {len(new_rows)} contacts from {csv_path}")
 
 
 # Global store instance -------------------------------------------------
-_store = ContactStore()
+funcs = _store = ContactStore()
 
 
 def find_contact_by_email(email: str) -> Optional[JSON]:
@@ -293,10 +316,10 @@ def append_contact_note(email: str, note: str) -> JSON:
     return _store.append_contact_note(email, note)
 
 def get_df():
-    return _store._ensure_loaded()
+    return funcs._ensure_loaded()
 
 def save_df():
-    _store._save()
+    funcs._save()
 
 
 # Compatibility aliases (email-only API)

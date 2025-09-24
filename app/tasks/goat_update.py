@@ -1,6 +1,8 @@
-import requests, os
+import os
 from urllib.parse import urlsplit, parse_qs
 from collections import defaultdict
+from datetime import datetime, timedelta
+import requests
 from app import api_client
 
 GOAT_API_KEY = os.environ['GOAT_API_KEY']
@@ -16,8 +18,11 @@ def id_counts(start: str | None = None, end: str | None = None, *, key="id", lim
     if limit > 100:  # API caps hits limit at 100
         limit = 100
     params = {"limit": limit}
+    if end is None:
+        end = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    
     if start and end:
-        params["start"] = start     # e.g. "2025-09-01T00:00:00Z" or "2025-09-01"
+        params["start"] = start     # e.g. "2025-09-01T00:00:00Z" or 
         params["end"] = end
 
     out = defaultdict(int)
