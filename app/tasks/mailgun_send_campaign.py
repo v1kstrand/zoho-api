@@ -9,6 +9,7 @@ import time
 
 from dotenv import load_dotenv
 import os
+import tqdm
 
 from ..api_client import find_contact_by_email, update_contact, get_contact_field
 from ..mailgun_util import send_mailgun_message
@@ -134,7 +135,7 @@ def send_campaign_pipeline(
     if config.tag:
         print(f"[info] using Mailgun tag '{config.tag}'")
 
-    for email in emails:
+    for email in tqdm.tqdm_notebook(emails, total=len(emails)):
         contact = contact_lookup(email)
         if not contact:
             print(f"[skip] Contact not found for {email}")

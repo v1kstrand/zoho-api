@@ -207,7 +207,7 @@ class ContactStore:
         idx = self._row_index_by_email(email_value)
         if idx is not None:
             print(f"Contact with email {payload['email']} already exists")
-            return
+            return {}
 
         row = {col: "" for col in COLUMNS}
         row.update(payload)
@@ -276,9 +276,13 @@ class ContactStore:
     
     def add_contacts_from_csv(self, csv_path: str) -> None    :
         new_rows = pd.read_csv(csv_path)
+        processed = seen = 0
         for _, row in new_rows.iterrows():
-            self.add_contact(row.to_dict())
-        print(f"[info] added {len(new_rows)} contacts from {csv_path}")
+            if self.add_contact(row.to_dict()):
+                processed += 1
+            else:
+                seen += 1
+        print(f"[info] added {processed} new contacts from {csv_path}, skipped {seen}") 
 
 
 # Global store instance -------------------------------------------------
@@ -334,6 +338,7 @@ __all__ = [
     "update_contact_fields",
     "get_contact_field",
     "ContactStore",
+    "add_contacts_from_csv"
 ]
 
 
