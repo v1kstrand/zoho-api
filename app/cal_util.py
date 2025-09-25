@@ -6,7 +6,7 @@ import os
 CAL_BASE = "https://api.cal.com/v2"
 CAL_API_VERSION = "2024-08-13"  # required
 CAL_API_KEY = os.environ["CAL_API_KEY"]
-CAL_CREATED_WITHIN = int(os.environ["CAL_CREATED_WITHIN"])
+CAL_CREATED_WITHIN = int(os.environ["CAL_CREATED_WITHIN"])s
 
 def _iso_to_dt(s: str) -> datetime:
     # "2025-09-22T12:00:00Z" → aware UTC dt

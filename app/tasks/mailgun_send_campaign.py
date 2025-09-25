@@ -225,6 +225,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
 def main(argv: Iterable[str] | None = None) -> int:
     parser = build_argument_parser()
     args = parser.parse_args(argv)
+    
 
     config = resolve_stage(args.stage)
     send_campaign_pipeline(
