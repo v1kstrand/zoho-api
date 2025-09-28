@@ -338,7 +338,6 @@ __all__ = [
     "update_contact_fields",
     "get_contact_field",
     "ContactStore",
-    "add_contacts_from_csv"
 ]
 
 
