@@ -54,7 +54,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         contact_update={"stage": "intro", "intro_date": get_now_with_delta(), "dfu1_date": get_now_with_delta(DFU1_DELTA)},
     ),
     "dfu1": StageConfig(
-        template="dfu1_v1",
+        template="dfu1",
         column_map={"first_name": "first_name", "auto_number": "auto_number"},
         static_params={},
         tag=f"dfu1_{get_now_with_delta()}",
@@ -62,7 +62,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         contact_update={"stage": "dfu1", "dfu2_date": get_now_with_delta(DFU2_DELTA)},
     ),
     "dfu2": StageConfig(
-        template="dfu2_v1",
+        template="dfu2",
         column_map={"first_name": "first_name", "auto_number": "auto_number"},
         static_params={},
         tag=f"dfu2_{get_now_with_delta()}",
@@ -123,6 +123,7 @@ def send_campaign_pipeline(
     send_message=send_mailgun_message,
     reset_tag=False,
     custom_tag=None,
+    generic_contact = False
 ) -> None:
     mailgun_errors: list[str] = []
     delivered_to = 0
@@ -130,6 +131,8 @@ def send_campaign_pipeline(
         config.tag = f"{stage}_{get_now_with_delta()}"
     if custom_tag:
         config.tag = custom_tag
+    if generic_contact:
+        config.template += "_generic"
     
     message_kwargs = {"tag": config.tag} if config.tag else {}
     if config.tag:
