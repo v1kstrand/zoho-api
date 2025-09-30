@@ -4,3 +4,6 @@ other/
 data/
 old/
 todo.ipynb
+test/
+__.ipynb
+utils.ipynb
