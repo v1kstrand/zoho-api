@@ -123,7 +123,8 @@ def send_campaign_pipeline(
     send_message=send_mailgun_message,
     reset_tag=False,
     custom_tag=None,
-    generic_contact = False
+    generic_mail = None,
+    return_if_429=True
 ) -> None:
     mailgun_errors: list[str] = []
     delivered_to = 0
@@ -131,7 +132,7 @@ def send_campaign_pipeline(
         config.tag = f"{stage}_{get_now_with_delta()}"
     if custom_tag:
         config.tag = custom_tag
-    if generic_contact:
+    if generic_mail is True:
         config.template += "_generic"
     
     message_kwargs = {"tag": config.tag} if config.tag else {}
@@ -163,10 +164,14 @@ def send_campaign_pipeline(
             print(f"[skip] {exc}")
             mailgun_errors.append(str(exc))
             continue
+        
+        temp = config.template
+        if generic_mail is not None and contact["contact_type"].lower() != "personal":
+            temp += "_generic"
 
         if dry_run:
             print(
-                f"[dry-run] stage '{stage}' would send template '{config.template}' "
+                f"[dry-run] stage '{stage}' would send template '{temp}' "
                 f"to {email} with params {params}"
             )
             delivered_to += 1
@@ -174,28 +179,27 @@ def send_campaign_pipeline(
         
         while True:
             try:
-                send_message([email], (config.template, params), **message_kwargs)
+                send_message([email], (temp, params), **message_kwargs)
                 delivered_to += 1
-                print(f"[mailgun] stage '{stage}' sent template '{config.template}' to {email}")
+                print(f"[mailgun] stage '{stage}' sent template '{temp}' to {email}")
                 time.sleep(3)
                 break
-            except Exception as exc:  # pragma: no cover - best effort logging only
+            except Exception as exc: 
                 print(f"[error] failed to send to {email}: {exc}")
                 mailgun_errors.append(f"{email}: {exc}")
                 if "420" in str(exc):
-                    print(["[ERROR]: Mailgun rate limit exceeded."])
+                    print(["[ERROR 420]: Mailgun rate limit exceeded."])
                     return
                 if "429" in str(exc):
-                    print(["[ERROR]: Throttled by Mailgun. Retry in 2 minutes."])
+                    if return_if_429:
+                        print(["[ERROR 429]: Throttled by Mailgun. Retry in 2 minutes."])
+                        return
+                    print(["[ERROR 429]: Throttled by Mailgun. Retry in 2 minutes."])
                     time.sleep(120)
                     
-                
-        if not dry_run:
-            update_contact(contact["email"], config.contact_update)
-        else:
-            print(f"[dry-run] stage '{stage}' would update {email} with {config.contact_update}")
+        update_contact(contact["email"], config.contact_update)
 
-    if not dry_run and delivered_to == 0:
+    if delivered_to == 0:
         print("[info] no messages sent")
 
     if mailgun_errors:
