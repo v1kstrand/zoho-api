@@ -286,7 +286,7 @@ class ContactStore:
 
 
 # Global store instance -------------------------------------------------
-funcs = _store = ContactStore()
+_store = ContactStore()
 
 
 def find_contact_by_email(email: str) -> Optional[JSON]:
@@ -320,10 +320,13 @@ def append_contact_note(email: str, note: str) -> JSON:
     return _store.append_contact_note(email, note)
 
 def get_df():
-    return funcs._ensure_loaded()
+    return _store._ensure_loaded()
 
 def save_df():
-    funcs._save()
+    _store._save()
+    
+def backup_df():
+    _store.save_backup()
 
 
 # Compatibility aliases (email-only API)

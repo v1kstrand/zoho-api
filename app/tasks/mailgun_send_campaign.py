@@ -1,18 +1,14 @@
 ﻿# app/tasks/mail_send_from_mailgun.py
 from __future__ import annotations
 
-import argparse
 from dataclasses import dataclass
-from typing import Iterable
 from datetime import datetime, timedelta
-import time
+import os
 
 from dotenv import load_dotenv
-import os
-import tqdm
 
 from ..api_client import find_contact_by_email, update_contact, get_contact_field
-from ..mailgun_util import send_mailgun_message
+from ..mailgun_util import send_mailgun_message_batched
 
 DFU1_DELTA = int(os.environ["DFU1_DELTA"])
 DFU2_DELTA = int(os.environ["DFU2_DELTA"])
@@ -22,8 +18,6 @@ load_dotenv()
 __all__ = [
     "StageConfig",
     "STAGE_CONFIGS",
-    "build_argument_parser",
-    "main",
     "resolve_stage",
     "_verify_contact_rules",
     "send_campaign_pipeline",
@@ -34,7 +28,7 @@ def get_now_with_delta(days: int = 0) -> str:
     return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d_%H:%M:%S")
     
 
-@dataclass(frozen=True)
+@dataclass()
 class StageConfig:
     template: str
     column_map: dict[str, str]
@@ -51,7 +45,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         static_params={},
         tag=f"intro_{get_now_with_delta()}",
         contact_rules=[("stage", "is", "new")],
-        contact_update={"stage": "intro", "intro_date": get_now_with_delta(), "dfu1_date": get_now_with_delta(DFU1_DELTA)},
+        contact_update={"stage": "intro", "intro_date": get_now_with_delta()},
     ),
     "dfu1": StageConfig(
         template="dfu1",
@@ -59,7 +53,7 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         static_params={},
         tag=f"dfu1_{get_now_with_delta()}",
         contact_rules=[("stage", "is", "intro")],
-        contact_update={"stage": "dfu1", "dfu2_date": get_now_with_delta(DFU2_DELTA)},
+        contact_update={"stage": "dfu1", "dfu1_date": get_now_with_delta()},
     ),
     "dfu2": StageConfig(
         template="dfu2",
@@ -67,20 +61,15 @@ STAGE_CONFIGS: dict[str, StageConfig] = {
         static_params={},
         tag=f"dfu2_{get_now_with_delta()}",
         contact_rules=[("stage", "is", "dfu1")],
-        contact_update={"stage": "dfu2"},
+        contact_update={"stage": "dfu2", "dfu2_date": get_now_with_delta()},
     ),
 }
 
 def _build_template_params(
-    contact: dict[str, str] | None,
-    *,
+    contact: dict[str, str],
     column_map: dict[str, str],
     static_params: dict[str, str],
-    email: str,
 ) -> dict[str, str]:
-    if contact is None:
-        raise ValueError(f"Contact not found for {email}")
-
     params: dict[str, str] = dict(static_params)
     for template_key, column_name in column_map.items():
         if column_name not in contact:
@@ -108,142 +97,68 @@ def _verify_contact_rules(contact: dict[str, str], contact_rules: dict[str, str]
             continue
         if comp == "not_in" and contact[key] not in value:
             continue
-        print(f"[skip] {key} {comp} {value}, got: {contact[key]}")
+        print(f"[skip] Contact rules not met for {contact['email']}, Rule: ({key} {comp} {value}), got: {contact[key]}")
         return False
     return True
 
 
 def send_campaign_pipeline(
-    *,
     stage: str,
     emails: list[str],
-    config: StageConfig,
-    dry_run: bool = False,
+    dry_run: bool,
+    personal_mail: bool,
     contact_lookup=find_contact_by_email,
-    send_message=send_mailgun_message,
-    reset_tag=False,
+    send_message=send_mailgun_message_batched,
     custom_tag=None,
-    generic_mail = None,
-    return_if_429=True
+    chunk_size=25,
+    verbose=True
 ) -> None:
-    mailgun_errors: list[str] = []
-    delivered_to = 0
-    if reset_tag:
-        config.tag = f"{stage}_{get_now_with_delta()}"
-    if custom_tag:
+    config = resolve_stage(stage)
+    if custom_tag is not None:
         config.tag = custom_tag
-    if generic_mail is True:
+    if not personal_mail:
         config.template += "_generic"
     
-    message_kwargs = {"tag": config.tag} if config.tag else {}
     if config.tag:
         print(f"[info] using Mailgun tag '{config.tag}'")
 
-    for email in tqdm.tqdm_notebook(emails, total=len(emails)):
+    valid_contacts = {}
+    for email in emails:
         contact = contact_lookup(email)
         if not contact:
             print(f"[skip] Contact not found for {email}")
             continue
         
-        if get_contact_field(email, "unsub") == "true":
+        if get_contact_field(email, "unsub") != "false":
             print(f"[skip] Contact unsubscribed for {email}")
             continue
         
+        if personal_mail and get_contact_field(email, "contact_type").lower() != "personal":
+            print(f"[skip] Contact opted out for generic mail for {email}")
+            continue
+        
         if not _verify_contact_rules(contact, config.contact_rules):
-            print(f"[skip] Contact rules not met for {email}")
             continue
         
-        try:
-            params = _build_template_params(
-                contact,
-                column_map=config.column_map,
-                static_params=config.static_params,
-                email=email,
-            )
-        except ValueError as exc:
-            print(f"[skip] {exc}")
-            mailgun_errors.append(str(exc))
-            continue
-        
-        temp = config.template
-        if generic_mail is not None and contact["contact_type"].lower() != "personal":
-            temp += "_generic"
-
-        if dry_run:
-            print(
-                f"[dry-run] stage '{stage}' would send template '{temp}' "
-                f"to {email} with params {params}"
-            )
-            delivered_to += 1
-            continue
-        
-        while True:
-            try:
-                send_message([email], (temp, params), **message_kwargs)
-                delivered_to += 1
-                print(f"[mailgun] stage '{stage}' sent template '{temp}' to {email}")
-                time.sleep(3)
-                break
-            except Exception as exc: 
-                print(f"[error] failed to send to {email}: {exc}")
-                mailgun_errors.append(f"{email}: {exc}")
-                if "420" in str(exc):
-                    print(["[ERROR 420]: Mailgun rate limit exceeded."])
-                    return
-                if "429" in str(exc):
-                    if return_if_429:
-                        print(["[ERROR 429]: Throttled by Mailgun. Retry in 2 minutes."])
-                        return
-                    print(["[ERROR 429]: Throttled by Mailgun. Retry in 2 minutes."])
-                    time.sleep(120)
-                    
-        update_contact(contact["email"], config.contact_update)
-
-    if delivered_to == 0:
-        print("[info] no messages sent")
-
-    if mailgun_errors:
-        print("[warn] one or more deliveries encountered issues:")
-        for msg in mailgun_errors:
-            print(f"    - {msg}")
-
-
-def build_argument_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Send a staged Mailgun template to contacts."
-    )
-    parser.add_argument(
-        "stage",
-        choices=sorted(STAGE_CONFIGS.keys()),
-        help="Stage name that determines template and merge parameters.",
-    )
-    parser.add_argument(
-        "emails",
-        nargs="+",
-        help="Email addresses that must exist in the contacts CSV.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Do not call Mailgun; only print what would happen.",
-    )
-    return parser
-
-
-def main(argv: Iterable[str] | None = None) -> int:
-    parser = build_argument_parser()
-    args = parser.parse_args(argv)
+        params = _build_template_params(
+            contact,
+            column_map=config.column_map,
+            static_params=config.static_params,
+        )
+        valid_contacts[email] = params
+        if verbose:
+            print(f"[ok] Contact found for {email} with params: {params}")
     
+    if not dry_run:
+        try:
+            send_message(valid_contacts, config.template, tag=config.tag, chunk_size=chunk_size)
+        except Exception as exc:
+            print(f"[error] failed to send messages: {exc}")
+            return
+        
+        for email in valid_contacts:
+            update_contact(email, config.contact_update)
+        print(f"[info] {len(valid_contacts)} messages sent")
+    else:
+        print(f"[info] {len(valid_contacts)} messages would be sent")
 
-    config = resolve_stage(args.stage)
-    send_campaign_pipeline(
-        stage=args.stage,
-        emails=args.emails,
-        config=config,
-        dry_run=args.dry_run,
-    )
-    return 0
-
-
-if __name__ == "__main__":
-    main()

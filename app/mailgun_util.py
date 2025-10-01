@@ -5,17 +5,16 @@ import json
 import os
 from datetime import datetime, timezone
 from email.utils import format_datetime
-from typing import Optional
 import time
-
+from typing import Mapping, Dict, List, Optional
 import requests
+
 from dotenv import load_dotenv
 
 from app.api_client import get_contact_field
 
 load_dotenv()
 
-BREVO_API_KEY = os.environ["BREVO_API_KEY"]
 MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
 MAILGUN_DOMAIN = "for.vdsai.se"
 MAILGUN_API_BASE = "https://api.eu.mailgun.net"
@@ -36,13 +35,11 @@ EMAIL_STATS_PATH = _optional_path(MAIL_DATA_DIR, MAIL_UTIL_EMAIL)
 
 
 __all__ = [
-    "BREVO_API_KEY",
     "MAILGUN_API_KEY",
     "MAILGUN_DOMAIN",
     "MAILGUN_API_BASE",
     "BATCH_STATS_PATH",
     "EMAIL_STATS_PATH",
-    "fetch_brevo_template_html",
     "send_mailgun_message",
     "ensure_dir",
     "rfc2822",
@@ -52,48 +49,88 @@ __all__ = [
     "append_batch_stats_row",
 ]
 
+def send_mailgun_message_batched(
+    recipients_vars: Mapping[str, Dict],   # { "alice@ex.com": {"name":"Alice", ...}, ... }
+    template_name: str,
+    tag: Optional[str] = None,
+    global_vars: Optional[Dict] = None,    # applies to all recipients (Mailgun t:variables)
+    chunk_size: int = 25                 # Mailgun max per request
+) -> List[requests.Response]:
+    """
+    Batch send using one Mailgun template with per-recipient variables.
 
-def fetch_brevo_template_html(template_id: int) -> tuple[str, str]:
-    """Return subject and HTML content for a Brevo template."""
-    if not BREVO_API_KEY:
-        raise RuntimeError("BREVO_API_KEY is not configured.")
-    url = f"https://api.brevo.com/v3/smtp/templates/{template_id}"
-    response = requests.get(
-        url,
-        headers={"api-key": BREVO_API_KEY, "accept": "application/json"},
-        timeout=20,
-    )
-    response.raise_for_status()
-    data = response.json()
-    return data.get("subject", ""), data.get("htmlContent", "")
+    Template usage:
+      - Per-recipient variables: %recipient.name% (subject/body)  [recipient-variables]
+      - Global variables: {{title}}                               [t:variables -> Handlebars]
 
+    Returns a list of successful responses (one per API call).
+    """
+    # 1) Filter unsubscribed recipients
+    filtered: Dict[str, Dict] = {}
+    for email, rvars in recipients_vars.items():
+        if str(get_contact_field(email, "unsub")).lower() == "true":
+            print(f"[skip] unsubscribed for {email}")
+            continue
+        filtered[email] = rvars
+
+    if not filtered:
+        return []
+
+    # 2) Chunk into ≤1000 recipients per request (Mailgun limit)  :contentReference[oaicite:1]{index=1}
+    emails = list(filtered.keys())
+    url = f"{MAILGUN_API_BASE}/v3/{MAILGUN_DOMAIN}/messages"
+    auth = ("api", MAILGUN_API_KEY)
+
+    for i in range(0, len(emails), chunk_size):
+        batch_emails = emails[i:i + chunk_size]
+        batch_vars = {e: filtered[e] for e in batch_emails}
+
+        data = {
+            "from": "Vikstrand Deep Solutions <info@vdsai.se>",
+            "to": batch_emails,
+            "template": template_name,
+            "t:variables": json.dumps(global_vars or {}),
+            "recipient-variables": json.dumps(batch_vars),
+        }
+        if tag:
+            data["o:tag"] = tag
+            
+        resp = requests.post(url, auth=auth, data=data, timeout=20)
+        resp.raise_for_status()
+
+        print(f"Sent batch to {len(batch_emails)} recipients")
+        time.sleep(10)
 
 def send_mailgun_message(
-    recipients: list[str],
-    template: tuple[str, dict] | None = None,
+    recipient,
+    template_name,
+    recip_vars,
+    template_params = None,
     tag: str | None = None,
 ) -> requests.Response:
     """Send a template-based message through Mailgun."""
     api_key = MAILGUN_API_KEY
     if not api_key:
         raise RuntimeError("MAILGUN_API_KEY is not configured.")
-    template_name, template_params = template
     
-    filtered_recipients = []
-    for recipient in recipients:
-        if get_contact_field(recipient, "unsub").lower() == "true":
-            print(f"[skip] unsubscribed for {recipient}")
-            continue
-        filtered_recipients.append(recipient)
-    recipients = filtered_recipients
-    if not recipients:
+    if get_contact_field(recipient, "unsub").lower() == "true":
+        print(f"[skip] unsubscribed for {recipient}")
         return
     
+    template_params = template_params or {}
+    batch_vars = {recipient : {}}
+    for v in recip_vars:
+        val = get_contact_field(recipient, v)
+        if not val:
+            assert False
+        batch_vars[recipient][v] = get_contact_field(recipient, v)
+            
     data = {
         "from": "Vikstrand Deep Solutions <info@vdsai.se>",
-        "to": recipients,
+        "to": [recipient],
         "template": template_name,
         "t:variables": json.dumps(template_params),
+        "recipient-variables": json.dumps(batch_vars),
     }
     if tag:
         data["o:tag"] = tag
@@ -104,7 +141,7 @@ def send_mailgun_message(
         timeout=20,
     )
     response.raise_for_status()
-    return response
+    print(f"Sent message to {recipient} with template {template_name} and variables {recip_vars}")
 
 
 def ensure_dir(path: str) -> None:
@@ -313,7 +350,7 @@ class MailgunPerRecipient:
         incoming_by_tag: dict[str, list[dict[str, str]]] = {}
         for record in rows:
             tag_value = record.get("tag", "")
-            if tag_value in MAILGUN_TAGS_EXCLUDE:
+            if not tag_value or tag_value in MAILGUN_TAGS_EXCLUDE:
                 continue
             
             serialised = {field: str(record.get(field, "")) for field in fieldnames}

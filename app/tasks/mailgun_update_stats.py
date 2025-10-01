@@ -15,7 +15,7 @@ from ..mailgun_util import (
 load_dotenv()
 
 def collect_mailgun_day(
-    day_utc: datetime,
+    day_utc: datetime = datetime.now(timezone.utc),
     events_client_factory=MailgunEventsClient,
     per_recipient_factory=MailgunPerRecipient,
     calc_batch_stats=compute_batch_stats,
@@ -39,7 +39,3 @@ def collect_mailgun_day(
             seen.add(tag)
             stats_row = calc_batch_stats(day_utc, tag_label=tag, client=client)
             append_batch_stats(stats_row)
-
-
-if __name__ == "__main__":
-    collect_mailgun_day(day_utc=datetime.now(timezone.utc))
