@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 from dotenv import load_dotenv
-load_dotenv()
-
 import pandas as pd
+
+load_dotenv()
 
 JSON = Dict[str, Any]
 
@@ -74,7 +74,7 @@ class ContactStore:
         """Read the CSV from disk (or build an empty frame when missing)."""
         if not self.path.exists():
             return self._empty_frame()
-        df = pd.read_csv(self.path, keep_default_na=False)
+        df = pd.read_csv(self.path, keep_default_na=False, dtype=str)
         if df.empty:
             return self._empty_frame()
         df = df.fillna("")

@@ -16,14 +16,6 @@ from ..mail_utils import imap_connect_with_retry, message_body_text, move_messag
 load_dotenv()
 
 MOVE_TO = os.environ["UNSUB_IMAP_MOVE_TO"]
-DRY_RUN = (
-    os.environ["UNSUB_DRY_RUN"].strip().lower() == "true"
-    if "UNSUB_DRY_RUN" in os.environ
-    else False
-)
-if DRY_RUN:
-    print("Dry run enabled")
-
 stop_kw = os.environ["UNSUB_STOP_KEYWORDS"]
 STOP_KEYWORDS = {word.strip().lower() for word in stop_kw.split(",") if word.strip()}
 SUBJECT_HINT = re.compile(r"\b(stop|unsubscribe|avregistrera|sluta)\b", re.I)
@@ -52,7 +44,7 @@ def _looks_like_stop(msg: email.message.Message, body: str) -> bool:
     return False
 
 
-def process_once(verbose: bool = False) -> None:
+def unsub_process_once(verbose: bool = True) -> None:
     """Scan for STOP mails and mark matching contacts as unsubscribed."""
 
     imap = imap_connect_with_retry(
@@ -82,8 +74,6 @@ def process_once(verbose: bool = False) -> None:
                 print(f"[STOP] {sender}")
 
             handled += 1
-            if DRY_RUN:
-                continue
 
             contact = find_contact_by_email(sender)
             if not contact:
@@ -91,7 +81,7 @@ def process_once(verbose: bool = False) -> None:
                     print(f"[warn] no contact for {sender}")
                 continue
 
-            update_contact(sender, {"unsub": "true"})
+            update_contact(sender, {"unsub": "True"})
             stage_value = get_contact_field(sender, "stage").strip().lower()
             if stage_value not in {"booked", "dropped"}:
                 update_contact(sender, {"stage": "dropped"})

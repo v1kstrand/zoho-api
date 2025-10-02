@@ -56,15 +56,6 @@ def send_mailgun_message_batched(
     global_vars: Optional[Dict] = None,    # applies to all recipients (Mailgun t:variables)
     chunk_size: int = 25                 # Mailgun max per request
 ) -> List[requests.Response]:
-    """
-    Batch send using one Mailgun template with per-recipient variables.
-
-    Template usage:
-      - Per-recipient variables: %recipient.name% (subject/body)  [recipient-variables]
-      - Global variables: {{title}}                               [t:variables -> Handlebars]
-
-    Returns a list of successful responses (one per API call).
-    """
     # 1) Filter unsubscribed recipients
     filtered: Dict[str, Dict] = {}
     for email, rvars in recipients_vars.items():
@@ -76,7 +67,6 @@ def send_mailgun_message_batched(
     if not filtered:
         return []
 
-    # 2) Chunk into ≤1000 recipients per request (Mailgun limit)  :contentReference[oaicite:1]{index=1}
     emails = list(filtered.keys())
     url = f"{MAILGUN_API_BASE}/v3/{MAILGUN_DOMAIN}/messages"
     auth = ("api", MAILGUN_API_KEY)
@@ -102,10 +92,9 @@ def send_mailgun_message_batched(
         time.sleep(10)
 
 def send_mailgun_message(
-    recipient,
+    recipients: Mapping[str, Dict],
     template_name,
-    recip_vars,
-    template_params = None,
+    template_static_params = None,
     tag: str | None = None,
 ) -> requests.Response:
     """Send a template-based message through Mailgun."""
@@ -113,44 +102,46 @@ def send_mailgun_message(
     if not api_key:
         raise RuntimeError("MAILGUN_API_KEY is not configured.")
     
-    if get_contact_field(recipient, "unsub").lower() == "true":
-        print(f"[skip] unsubscribed for {recipient}")
-        return
-    
-    template_params = template_params or {}
-    batch_vars = {recipient : {}}
-    for v in recip_vars:
-        val = get_contact_field(recipient, v)
-        if not val:
-            assert False
-        batch_vars[recipient][v] = get_contact_field(recipient, v)
+    template_static_params = template_static_params or {}
+    receivers = []
+    for recipient, recip_vars in recipients.items(): 
+        if get_contact_field(recipient, "unsub").lower() == "true":
+            print(f"[skip] unsubscribed for {recipient}")
+            return
+        
+        batch_vars = {recipient : recip_vars}
+        data = {
+            "from": "Vikstrand Deep Solutions <info@vdsai.se>",
+            "to": [recipient],
+            "template": template_name,
+            "t:variables": json.dumps(template_static_params),
+            "recipient-variables": json.dumps(batch_vars),
+        }
+        if tag:
+            data["o:tag"] = tag
             
-    data = {
-        "from": "Vikstrand Deep Solutions <info@vdsai.se>",
-        "to": [recipient],
-        "template": template_name,
-        "t:variables": json.dumps(template_params),
-        "recipient-variables": json.dumps(batch_vars),
-    }
-    if tag:
-        data["o:tag"] = tag
-    response = requests.post(
-        f"{MAILGUN_API_BASE}/v3/{MAILGUN_DOMAIN}/messages",
-        auth=("api", api_key),
-        data=data,
-        timeout=20,
-    )
-    response.raise_for_status()
-    print(f"Sent message to {recipient} with template {template_name} and variables {recip_vars}")
-
+        response = requests.post(
+            f"{MAILGUN_API_BASE}/v3/{MAILGUN_DOMAIN}/messages",
+            auth=("api", api_key),
+            data=data,
+            timeout=20,
+        )
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            print(f"[send_mailgun_message] Exception {e}")
+            return receivers
+        
+        receivers.append(recipient)
+        print(f"Sent message to {recipient} with template {template_name} and variables {recip_vars}")
+        time.sleep(3)
+    return receivers
 
 def ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
 
-
 def rfc2822(dt: datetime) -> str:
     return format_datetime(dt.astimezone(timezone.utc))
-
 
 class MailgunEventsClient:
     """Thin wrapper around Mailgun's events API."""

@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 
 from ..api_client import find_contact_by_email, update_contact, get_contact_field
-from ..mailgun_util import send_mailgun_message_batched
+from ..mailgun_util import send_mailgun_message
 
 DFU1_DELTA = int(os.environ["DFU1_DELTA"])
 DFU2_DELTA = int(os.environ["DFU2_DELTA"])
@@ -108,9 +108,8 @@ def send_campaign_pipeline(
     dry_run: bool,
     personal_mail: bool,
     contact_lookup=find_contact_by_email,
-    send_message=send_mailgun_message_batched,
+    send_message=send_mailgun_message,
     custom_tag=None,
-    chunk_size=25,
     verbose=True
 ) -> None:
     config = resolve_stage(stage)
@@ -129,7 +128,7 @@ def send_campaign_pipeline(
             print(f"[skip] Contact not found for {email}")
             continue
         
-        if get_contact_field(email, "unsub") != "false":
+        if get_contact_field(email, "unsub").lower() != "false":
             print(f"[skip] Contact unsubscribed for {email}")
             continue
         
@@ -150,15 +149,11 @@ def send_campaign_pipeline(
             print(f"[ok] Contact found for {email} with params: {params}")
     
     if not dry_run:
-        try:
-            send_message(valid_contacts, config.template, tag=config.tag, chunk_size=chunk_size)
-        except Exception as exc:
-            print(f"[error] failed to send messages: {exc}")
-            return
-        
-        for email in valid_contacts:
+        receivers = send_message(valid_contacts, config.template, tag=config.tag)
+        for email in receivers:
             update_contact(email, config.contact_update)
-        print(f"[info] {len(valid_contacts)} messages sent")
+            
+        print(f"[info] {len(receivers)} messages sent")
     else:
         print(f"[info] {len(valid_contacts)} messages would be sent")
 
