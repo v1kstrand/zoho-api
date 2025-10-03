@@ -194,7 +194,7 @@ class ContactStore:
             "auto_number" : self._next_auto_number(), 
             "created_time" : self._get_now(), 
             "stage" : "new", 
-            "unsub" : "false"
+            "unsub" : "False"
             }
         
         for k, v in base.items():
@@ -276,18 +276,17 @@ class ContactStore:
     
     def add_contacts_from_csv(self, csv_path: str) -> None    :
         new_rows = pd.read_csv(csv_path)
-        processed = seen = 0
+        processed = skip = 0
         for _, row in new_rows.iterrows():
             if self.add_contact(row.to_dict()):
                 processed += 1
             else:
-                seen += 1
-        print(f"[info] added {processed} new contacts from {csv_path}, skipped {seen}") 
+                skip += 1
+        print(f"[info] added {processed} new contacts from {csv_path}, skipped {skip}")
 
 
 # Global store instance -------------------------------------------------
 _store = ContactStore()
-
 
 def find_contact_by_email(email: str) -> Optional[JSON]:
     """Fetch a contact row by email, returning None when absent."""
@@ -318,6 +317,9 @@ def filter_contacts(criteria: Dict[str, Any]) -> List[JSON]:
 def append_contact_note(email: str, note: str) -> JSON:
     """Append a textual note to the contact's notes column."""
     return _store.append_contact_note(email, note)
+
+def add_contacts_from_csv(csv_path: str) -> None:
+    _store.add_contacts_from_csv(csv_path)
 
 def get_df():
     return _store._ensure_loaded()
