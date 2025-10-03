@@ -1,9 +1,14 @@
 import sys
 import os
 import email
-
-import subprocess, json, urllib.parse
+import shutil
+import subprocess
+import csv
+import json
+import glob
 from datetime import datetime
+
+import urllib.parse
 from collections import defaultdict
 import pandas as pd
 
@@ -22,6 +27,7 @@ EMAIL_STATS_PATH = _optional_path(MAIL_DATA_DIR, MAIL_UTIL_EMAIL)
 
 ORACLE_HOST = os.environ["ORACLE_HOST"]
 ORACLE_USER = os.environ["ORACLE_USER"]
+FORM_DATA_DIR = os.environ["FORM_DATA_DIR"]
 
 def extract_html(eml_path):
     with open(eml_path, 'rb') as f:
@@ -115,3 +121,46 @@ def get_site_trafic(is_after_date = "2025-10-02T09:19:31+00:00"):
     df_traffic = pd.DataFrame(rows[1:], columns=rows[0])
     df_visits = pd.DataFrame.from_dict(visits, orient="index").fillna(0)
     return df_traffic, df_visits
+
+
+def pull_disc_form_submissions(
+    remote_dir: str = "/var/lib/formrelay/submissions",
+    local_dir: str = FORM_DATA_DIR,
+) -> None:
+    os.makedirs(local_dir, exist_ok=True)
+    cmd = ["scp", "-r", f"{ORACLE_USER}@{ORACLE_HOST}:{remote_dir}/", f"{os.path.abspath(local_dir)}/"]
+
+    if shutil.which("rsync"):
+        cmd = ["rsync", "-avz", f"{ORACLE_USER}@{ORACLE_HOST}:{remote_dir}/", f"{os.path.abspath(local_dir)}/"]
+    else:
+        cmd = ["scp", "-r", f"{ORACLE_USER}@{ORACLE_HOST}:{remote_dir}/", f"{os.path.abspath(local_dir)}/"]
+
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Sync failed: {e}") from e
+
+
+def set_disc_form_csv(
+    save_path: str = os.path.join(FORM_DATA_DIR, "discovery_form.csv")
+):
+    fields = ["submitted_at","email","goal","role","availability","data_sources","outcome","company_website"]
+    rows = []
+    json_sub_dir = os.path.join(FORM_DATA_DIR, "submissions", "*.json")
+    for path in sorted(glob.glob(json_sub_dir)):
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        rows.append([d.get(k,"") for k in fields])
+
+    def parse(ts):
+        try: 
+            return datetime.fromisoformat(ts.replace('Z','+00:00'))
+        except: 
+            return datetime.min
+    rows.sort(key=lambda r: parse(r[0][0]) if r and r[0][0] else datetime.min)
+
+    os.makedirs("data", exist_ok=True)
+    with open(save_path,"w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, quoting=csv.QUOTE_ALL)
+        w.writerow(fields)
+        w.writerows(rows)
