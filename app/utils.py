@@ -6,7 +6,7 @@ import subprocess
 import csv
 import json
 import glob
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import urllib.parse
 from collections import defaultdict
@@ -28,6 +28,9 @@ EMAIL_STATS_PATH = _optional_path(MAIL_DATA_DIR, MAIL_UTIL_EMAIL)
 ORACLE_HOST = os.environ["ORACLE_HOST"]
 ORACLE_USER = os.environ["ORACLE_USER"]
 FORM_DATA_DIR = os.environ["FORM_DATA_DIR"]
+
+def get_now_with_delta(days: int = 0) -> str:
+    return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d_%H:%M:%S")
 
 def extract_html(eml_path):
     with open(eml_path, 'rb') as f:
@@ -93,7 +96,7 @@ def get_site_trafic(is_after_date = "2025-10-02T09:19:31+00:00"):
         data = run(["ssh", f"{ORACLE_USER}@{ORACLE_HOST}", f"{cat} {path}"])
         for line in data.splitlines():
             line = line.strip()
-            if not line: 
+            if not line:
                 continue
             try:
                 d = json.loads(line)

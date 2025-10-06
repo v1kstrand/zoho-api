@@ -8,10 +8,13 @@ from email.utils import format_datetime
 import time
 from typing import Mapping, Dict, List, Optional
 import requests
+from requests import HTTPError, Response
+
 
 from dotenv import load_dotenv
 
 from app.api_client import get_contact_field
+from app.utils import get_now_with_delta
 
 load_dotenv()
 
@@ -19,10 +22,12 @@ MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
 MAILGUN_DOMAIN = "for.vdsai.se"
 MAILGUN_API_BASE = "https://api.eu.mailgun.net"
 MAILGUN_TAGS_EXCLUDE = {t.strip() for t in os.environ["MAILGUN_TAGS_EXCLUDE"].split(",") if t}
+MAILGUN_429_LOGFILE = os.environ["MAILGUN_429_LOGFILE"]
 
 MAIL_DATA_DIR = os.environ["MAIL_UTIL_DATADIR"]
 MAIL_UTIL_BATCH = os.environ["MAIL_UTIL_BATCH"]
 MAIL_UTIL_EMAIL = os.environ["MAIL_UTIL_EMAIL"]
+
 
 def _optional_path(base: Optional[str], name: Optional[str]) -> Optional[str]:
     if not base or not name:
@@ -130,6 +135,13 @@ def send_mailgun_message(
             response.raise_for_status()
         except Exception as e:
             print(f"[send_mailgun_message] Exception {e}")
+            if isinstance(e, HTTPError):
+                resp: Optional[Response] = e.response
+                if resp is not None and resp.status_code == 429:
+                    msg = e.response.json()
+                    print(f"[429 msg] {msg}")
+                    with open(MAILGUN_429_LOGFILE, "a", encoding="utf-8") as f:
+                        f.write(f"[{get_now_with_delta()}] : {msg}\n")
             return receivers
         
         receivers.append(recipient)

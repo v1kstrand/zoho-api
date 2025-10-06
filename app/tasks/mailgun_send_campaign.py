@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 import os
 
 from dotenv import load_dotenv
 
 from ..api_client import find_contact_by_email, update_contact, get_contact_field
 from ..mailgun_util import send_mailgun_message
+from ..utils import get_now_with_delta
 
 DFU1_DELTA = int(os.environ["DFU1_DELTA"])
 DFU2_DELTA = int(os.environ["DFU2_DELTA"])
@@ -17,16 +17,12 @@ load_dotenv()
 
 __all__ = [
     "StageConfig",
-    "STAGE_CONFIGS",
     "resolve_stage",
     "_verify_contact_rules",
     "send_campaign_pipeline",
     "get_now_with_delta",
 ]
 
-def get_now_with_delta(days: int = 0) -> str:
-    return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d_%H:%M:%S")
-    
 
 @dataclass()
 class StageConfig:
@@ -38,32 +34,38 @@ class StageConfig:
     contact_update: dict[str, str] | None = None
 
 
-STAGE_CONFIGS: dict[str, StageConfig] = {
-    "intro": StageConfig(
-        template="intro_v1",
-        column_map={"first_name": "first_name", "auto_number": "auto_number"},
-        static_params={},
-        tag=f"intro_{get_now_with_delta()}",
-        contact_rules=[("stage", "is", "new")],
-        contact_update={"stage": "intro", "intro_date": get_now_with_delta()},
-    ),
-    "dfu1": StageConfig(
-        template="dfu1",
-        column_map={"first_name": "first_name", "auto_number": "auto_number"},
-        static_params={},
-        tag=f"dfu1_{get_now_with_delta()}",
-        contact_rules=[("stage", "is", "intro")],
-        contact_update={"stage": "dfu1", "dfu1_date": get_now_with_delta()},
-    ),
-    "dfu2": StageConfig(
-        template="dfu2",
-        column_map={"first_name": "first_name", "auto_number": "auto_number"},
-        static_params={},
-        tag=f"dfu2_{get_now_with_delta()}",
-        contact_rules=[("stage", "is", "dfu1")],
-        contact_update={"stage": "dfu2", "dfu2_date": get_now_with_delta()},
-    ),
-}
+def resolve_stage(stage: str) -> StageConfig:
+    configs = {
+        "intro": StageConfig(
+            template="intro_v1",
+            column_map={"first_name": "first_name", "auto_number": "auto_number"},
+            static_params={},
+            tag=f"intro_{get_now_with_delta()}",
+            contact_rules=[("stage", "is", "new")],
+            contact_update={"stage": "intro", "intro_date": get_now_with_delta()},
+        ),
+        "dfu1": StageConfig(
+            template="dfu1",
+            column_map={"first_name": "first_name", "auto_number": "auto_number"},
+            static_params={},
+            tag=f"dfu1_{get_now_with_delta()}",
+            contact_rules=[("stage", "is", "intro")],
+            contact_update={"stage": "dfu1", "dfu1_date": get_now_with_delta()},
+        ),
+        "dfu2": StageConfig(
+            template="dfu2",
+            column_map={"first_name": "first_name", "auto_number": "auto_number"},
+            static_params={},
+            tag=f"dfu2_{get_now_with_delta()}",
+            contact_rules=[("stage", "is", "dfu1")],
+            contact_update={"stage": "dfu2", "dfu2_date": get_now_with_delta()},
+        ),
+    }
+    try:
+        return configs[stage]
+    except KeyError as exc:
+        available = ", ".join(sorted(configs)) or "<none>"
+        raise ValueError(f"Unknown stage '{stage}'. Available stages: {available}") from exc
 
 def _build_template_params(
     contact: dict[str, str],
@@ -78,14 +80,6 @@ def _build_template_params(
             )
         params[template_key] = contact.get(column_name, "")
     return params
-
-
-def resolve_stage(stage: str) -> StageConfig:
-    try:
-        return STAGE_CONFIGS[stage]
-    except KeyError as exc:
-        available = ", ".join(sorted(STAGE_CONFIGS)) or "<none>"
-        raise ValueError(f"Unknown stage '{stage}'. Available stages: {available}") from exc
 
 def _verify_contact_rules(contact: dict[str, str], contact_rules: dict[str, str]):
     for key, comp, value in contact_rules:
@@ -115,7 +109,7 @@ def send_campaign_pipeline(
     config = resolve_stage(stage)
     if custom_tag is not None:
         config.tag = custom_tag
-    if not personal_mail:
+    if not personal_mail and not config.template.endswith("_generic"):
         config.template += "_generic"
     
     if config.tag:
@@ -124,6 +118,7 @@ def send_campaign_pipeline(
     valid_contacts = {}
     for email in emails:
         contact = contact_lookup(email)
+        
         if not contact:
             print(f"[skip] Contact not found for {email}")
             continue
@@ -146,7 +141,7 @@ def send_campaign_pipeline(
         )
         valid_contacts[email] = params
         if verbose:
-            print(f"[ok] Contact found for {email} with params: {params}")
+            print(f"[ok] Contact found for {email}, template {config.template} with params: {params}")
     
     if not dry_run:
         receivers = send_message(valid_contacts, config.template, tag=config.tag)

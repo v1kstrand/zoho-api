@@ -25,7 +25,6 @@ def collect_mailgun_day(
     per_recipient = per_recipient_factory(client)
 
     rows = per_recipient.compute_rows_for_day(day_utc)
-    
     if rows:
         per_recipient.upsert_csv(rows)
     else:
