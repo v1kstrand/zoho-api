@@ -18,6 +18,8 @@ from app.utils import get_now_with_delta
 
 load_dotenv()
 
+ZOHO_IMAP_USER = os.environ["ZOHO_IMAP_USER"]
+
 MAILGUN_API_KEY = os.environ["MAILGUN_API_KEY"]
 MAILGUN_DOMAIN = "for.vdsai.se"
 MAILGUN_API_BASE = "https://api.eu.mailgun.net"
@@ -81,7 +83,7 @@ def send_mailgun_message_batched(
         batch_vars = {e: filtered[e] for e in batch_emails}
 
         data = {
-            "from": "Vikstrand Deep Solutions <info@vdsai.se>",
+            "from": f"Vikstrand Deep Solutions <{ZOHO_IMAP_USER}>",
             "to": batch_emails,
             "template": template_name,
             "t:variables": json.dumps(global_vars or {}),
@@ -116,7 +118,7 @@ def send_mailgun_message(
         
         batch_vars = {recipient : recip_vars}
         data = {
-            "from": "Vikstrand Deep Solutions <info@vdsai.se>",
+            "from": f"Vikstrand Deep Solutions <{ZOHO_IMAP_USER}>",
             "to": [recipient],
             "template": template_name,
             "t:variables": json.dumps(template_static_params),

@@ -73,7 +73,7 @@ def check_and_update_smtp_errors():
         print(f"Update: {recipient} {smtp_message}")
         
 
-def get_site_trafic(is_after_date = "2025-10-02T09:19:31+00:00"):
+def get_site_trafic(is_after_date = "2025-10-02T09:19:31+00:00", get_all = False):
     df = api_client.get_df()
     auto_number = set(map(str, df["auto_number"].tolist()))
     LOG  = "/var/log/nginx/vdsai-events.log"
@@ -102,10 +102,11 @@ def get_site_trafic(is_after_date = "2025-10-02T09:19:31+00:00"):
                 d = json.loads(line)
             except Exception:
                 continue
-            if d.get("tok","") not in auto_number or not d.get("ts","") or not is_after(d.get("ts","")):
-                continue
-            if d.get("ev","") == "ping":
-                continue
+            if not get_all:
+                if d.get("tok","") not in auto_number or not d.get("ts","") or not is_after(d.get("ts","")):
+                    continue
+                if d.get("ev","") == "ping":
+                    continue
             
             visits[d.get("tok","")][d.get("ev","")] += 1
             
